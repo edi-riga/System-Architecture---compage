@@ -29,6 +29,9 @@ static compage_t *head;
 
 /* convert representation from type to string */
 static char *compage_getValueStr(char *buf, size_t bufSize, size_t type, void *addr){
+    // debug
+    _D("Type: 0x%x", type);
+
     switch(type){
         case 'b': /* bool     */
             snprintf(buf, bufSize, "%s", (*(int8_t*)addr) ? "true" : "false");
@@ -63,14 +66,20 @@ static char *compage_getValueStr(char *buf, size_t bufSize, size_t type, void *a
         case 'd': /* double   */
             snprintf(buf, bufSize, "%f", *(double*)addr);
             return buf;
+        case 0x6350: /* char* */
+            snprintf(buf, bufSize, "%s", *(char**)addr);
+            return buf;
         default:
             snprintf(buf, bufSize, "<Data type not supported>");
             return buf;
     }
 }
-
+ 
 /* convert representation from string to type */
 static int compage_setValueType(void *dst, const void *src, size_t type){
+    // debug
+    _D("Type: 0x%x", type);
+
     switch(type){
         case 'b': /* bool     */
             *(int8_t*)dst = atoi((char*)src);
@@ -104,6 +113,9 @@ static int compage_setValueType(void *dst, const void *src, size_t type){
             return 0;
         case 'd': /* double   */
             *(double*)dst = atof((char*)src);
+            return 0;
+        case 0x6350: /* char* */
+            *(char**)dst = strdup((char*)src);
             return 0;
         default:
             return -1;
@@ -321,7 +333,7 @@ const char *value){
     }
 
     /* "handler" is obligatory key, which allows us to identify worker's 
-     * configuration section, here we find try to find the structure and 
+     * configuration section, here we try to find the structure and 
      * initialize compage structure as much as possible */
     if(strcmp("handler", key) == 0){
         struct configBase *config = (struct configBase*)compage_sectionsFindConfig(value);

@@ -21,10 +21,10 @@ struct configBase{
 
 /* this structure is created with every working thread */
 typedef struct compage_t{
-    pthread_t   pid;                   // id used for launching/releasing threads
-    compage_t  *next;                  // we are using forwardly linked list format
-    const char *id;                    // worker's id, as present in config file
-    int         enabled;               // determines if worker should be enabled
+    pthread_t         pid;             // id used for launching/releasing threads
+    struct compage_t *next;            // we are using forwardly linked list format
+    const char       *id;              // worker's id, as present in config file
+    int               enabled;         // determines if worker should be enabled
     struct configBase   *recordCommon; // pointer to the common compage parameters
     struct configOption *recordConfig; // pointer to compage configuration
     void *(*handler)(void*);           // handler to call
@@ -34,7 +34,7 @@ typedef struct compage_t{
 
 #ifdef __cplusplus
     #include <typeinfo>
-    #define COMPAGE_TYPEID(x) typeid(x).name()
+    #define COMPAGE_TYPEID(x) *(short*)typeid(x).name()
 #else
     #define COMPAGE_TYPEID(x) _Generic((x), \
         _Bool:    'b',   \
@@ -47,8 +47,9 @@ typedef struct compage_t{
         int64_t:  'l',   \
         uint64_t: 'm',   \
         float:    'f',   \
-        double:   'd',  \
-        char:     'a',  \
+        double:   'd',   \
+        char:     'a',   \
+        char*:    0x6350,\
         default:  0xffffffff)
 #endif
 
@@ -80,7 +81,7 @@ const char* handler##_pdata_##config##_id __attribute__((section("compage"))) = 
 
 #define COMPAGE_PDATA_ADD_CONFIG_TYPE(handler, type, config) \
 size_t handler##_pdata_##config##_type __attribute__((section("compage"))) = \
-*COMPAGE_TYPEID(((type*)0)->config);
+COMPAGE_TYPEID(((type*)0)->config);
 
 #define COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config) \
 size_t handler##_pdata_##config##_offset __attribute__((section("compage"))) = \
