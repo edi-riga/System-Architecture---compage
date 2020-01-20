@@ -54,15 +54,12 @@ static void *worker(void *p){
 }
 
 /* register this worker and worker's configuration */
-COMPAGE_REGISTER(worker, worker_pdataDefualt)
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_int8);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_uint8);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_int16);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_uint16);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_int32);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_uint32);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_int64);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_uint64);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_float);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_double);
-COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_char);
+COMPAGE_REGISTER(worker, worker_pdataDefualt);
+//COMPAGE_PDATA_ADD_CONFIG_MULTIPLE(worker, pdata_t, val_int8);
+COMPAGE_PDATA_ADD_CONFIG_MULTIPLE(worker, pdata_t, 
+    val_int8, val_uint8, val_int16, val_uint16,
+    val_int32, val_uint32, val_int64, val_uint64,
+    val_float, val_double, val_char)
+//COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_float);
+//COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_double);
+//COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_char);

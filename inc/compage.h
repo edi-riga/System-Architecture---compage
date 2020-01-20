@@ -109,6 +109,35 @@ COMPAGE_PDATA_ADD_CONFIG_ID(handler, config)            \
 COMPAGE_PDATA_ADD_CONFIG_TYPE(handler, type, config)    \
 COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config)
 
+//#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_0(handler, type, config) COMPAGE_PDATA_ADD_CONFIG(handler, type, config)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_1(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config);
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_2(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_1(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_3(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_2(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_4(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_3(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_5(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_4(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_6(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_5(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_7(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_6(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_8(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_7(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_9(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_8(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_10(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_9(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_11(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_10(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_12(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_11(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_13(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_12(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_14(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_13(handler, type, __VA_ARGS__)
+
+#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
+#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
+#define CONCATENATE2(arg1, arg2)  arg1##arg2
+
+#define ARGUMENT_COUNT(...) ARGUMENT_COUNT_(__VA_ARGS__, ARGUMENT_INDEXES())
+#define ARGUMENT_COUNT_(...) ARGUMENT_COUNT_PREPEND(__VA_ARGS__)
+#define ARGUMENT_COUNT_PREPEND(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, N, ...) N
+#define ARGUMENT_INDEXES() 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_(N, handler, type, ...) CONCATENATE(COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_,N)(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIG_MULTIPLE(handler, type, ...) COMPAGE_PDATA_ADD_CONFIG_MULTIPLE_(ARGUMENT_COUNT(__VA_ARGS__), handler, type, __VA_ARGS__)
+
+
 /* create default configuration file */
 int compage_createDefaultConfig(const char *fpath);
 
