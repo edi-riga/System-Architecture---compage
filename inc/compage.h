@@ -4,6 +4,33 @@
 #include <stdio.h>
 #include <pthread.h>
 
+/* API:
+ * =============================================================================
+ * COMPAGE_REGISTER(handler, pdata)
+ * =============================================================================
+ * @brief registers component handler and its associated data structure with 
+ *     the COMPAGE framework.
+ *
+ * @param handler - pointer to the component function (handler) with prototype: 
+ *                  "void* (*handler)(void *pdata)
+ * @param pdata   - pointer to (default) data structure which is expected as 
+ *                  pdata
+ *
+ *
+ * =============================================================================
+ * COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...)
+ * =============================================================================
+ * @brief marks pdata structure variables (single or multiple) with the 
+ *     framework for the configuration.
+ *
+ * @param handler - pointer to the component function (handler) with prototype: 
+ *                  "void* (*handler)(void *pdata)
+ * @param type    - type of the struct container (often a type created with
+ *                  typedef)
+ * @param ...     - list of member variables which should be marked for 
+ *                  configuration
+ * */
+
 struct configOption{
     char   *id;
     size_t  type;
