@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 #include <pthread.h>
 #include "compage.h"
 #include "ini/ini.h"
@@ -398,6 +399,46 @@ int compage_doPthreads(void){
 
         it = it->next;
     }
+
+    return 0;
+}
+
+void compage_help(char *appName){
+    printf("USAGE:\n");
+    printf("\t%s generate/gen <fname>  - generate default config file as <fname>\n", appName);
+    printf("\t%s <fname>               - use <fname config file\n", appName);
+}
+
+int compage_main(int argc, char *argv[]){
+    /* parse input */
+    if(argc < 2){
+        compage_help(argv[0]);
+        return 0;
+    }
+
+    /* generate config */
+    if( (strcmp(argv[1], "generate") == 0) || (strcmp(argv[1], "gen") == 0)){
+        if(argc < 3){
+            compage_help(argv[0]);
+            return 0;
+        }
+        return compage_createDefaultConfig(argv[2]);
+    }
+
+    _I("COMPAGE: loading configuration");
+    if(compage_initFromConfig(argv[1]) == -1){
+        _E("COMPAGE: failed to load configuration");
+        return -1;
+    }
+
+    _I("COMPAGE: launching pthreads");
+    if(compage_doPthreads() == -1){
+        _E("COMPAGE: failed to launch pthreads"); 
+        return -1;
+    }
+
+    _I("COMPAGE: main thread going to sleep");
+    pause();
 
     return 0;
 }

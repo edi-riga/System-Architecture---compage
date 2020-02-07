@@ -179,4 +179,7 @@ int compage_doPthreads();
 /* just ptint whatever we have in the section */
 void compage_debugSections(void);
 
+/* default compage framework entry point for convinience */
+int compage_main(int argc, char *argv[]);
+
 #endif
