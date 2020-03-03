@@ -4,9 +4,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "compage.h"
 #include "ini/ini.h"
 #include "utils.h"
+extern "C" {
+#include "compage.h"
+}
 
 /* when we use custom sections, linker creates these labels, which we can use
  * to localize section and calculate its size */
@@ -31,7 +33,7 @@ static compage_t *head;
 /* convert representation from type to string */
 static char *compage_getValueStr(char *buf, size_t bufSize, size_t type, void *addr){
     // debug
-    _D("Type: 0x%x", type);
+    _D("Type: 0x%x", (unsigned)type);
 
     switch(type){
         case 'b': /* bool     */
@@ -79,7 +81,7 @@ static char *compage_getValueStr(char *buf, size_t bufSize, size_t type, void *a
 /* convert representation from string to type */
 static int compage_setValueType(void *dst, const void *src, size_t type){
     // debug
-    _D("Type: 0x%x", type);
+    _D("Type: 0x%x", (unsigned)type);
 
     switch(type){
         case 'b': /* bool     */

@@ -17,7 +17,7 @@ OBJ:=$(subst .c,.o,$(OBJ))
 OUT:=out/main.elf
 DIR:=$(sort $(dir $(OBJ))) $(sort $(dir $(OUT)))
 INC:=-I../inc
-LIB:=-lpthread -L../out -l:libcompage.a
+LIB:=-L../out -l:libcompage.a -lpthread 
 
 all:$(DIR) $(OUT)
 

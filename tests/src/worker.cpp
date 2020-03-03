@@ -1,6 +1,9 @@
+extern "C" {
 #include <stdio.h>
 #include <stdint.h>
+#include <pthread.h>
 #include "compage.h"
+}
 
 /* worker's private data structure */
 typedef struct {
@@ -29,7 +32,7 @@ static pdata_t worker_pdataDefualt = {
     .val_uint64 = 8,
     .val_float  = 9,
     .val_double = 10,
-    .val_char  = "test",
+    .val_char  = (char*)"test",
 };
 
 /* worker */
@@ -43,8 +46,8 @@ static void *worker(void *p){
     printf("val_uint16: %u\n",   pdata->val_uint16);
     printf("val_int32:  %d\n",   pdata->val_int32);
     printf("val_uint32: %u\n",   pdata->val_uint32);
-    printf("val_int64:  %lld\n", pdata->val_int64);
-    printf("val_uint64: %llu\n", pdata->val_uint64);
+    printf("val_int64:  %ld\n", pdata->val_int64);
+    printf("val_uint64: %lu\n", pdata->val_uint64);
     printf("val_float:  %f\n",   pdata->val_float);
     printf("val_double: %f\n",   pdata->val_double);
     printf("val_char:   %s\n",   pdata->val_char);
