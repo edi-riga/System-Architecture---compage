@@ -394,10 +394,12 @@ int compage_doPthreads(void){
     compage_t *it = head;
 
     while(it != NULL){
-        _I("Initializing thread %p(it) %p(handler), %p(pdata)", it, it->handler, it->pdata);
-        int err = pthread_create(&(it->pid), NULL, it->handler, it->pdata);
-        if(err != 0)
-            _W("Failed to initialize pthread");
+        if(it->enabled){
+            _I("Initializing thread %p(it) %p(handler), %p(pdata)", it, it->handler, it->pdata);
+            int err = pthread_create(&(it->pid), NULL, it->handler, it->pdata);
+            if(err != 0)
+                _W("Failed to initialize pthread");
+        }
 
         it = it->next;
     }
