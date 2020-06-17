@@ -381,10 +381,10 @@ int compage_createDefaultConfig(const char *fpath){
 int compage_initFromConfig(const char *fpath){
     if(ini_parse(fpath, compage_iniParser, NULL) < 0){
         _E("Failed to load \"%s\" configuration file", fpath);
-        return 0;
+        return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 
