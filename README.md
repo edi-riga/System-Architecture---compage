@@ -47,3 +47,6 @@ float
 double
 char*
 ```
+
+# Important considerations
+When using compiler optimizations, the compiler can reorder the contents of the compage section, which most probably will result in segmentation fault as the framework depends on the actual layout of the memory. This can be fixed by adding the _-fno-toplevel-reorder_ compilation option.
