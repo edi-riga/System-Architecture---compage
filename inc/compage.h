@@ -180,6 +180,6 @@ int compage_doPthreads();
 void compage_debugSections(void);
 
 /* default compage framework entry point for convinience */
-int compage_main(int argc, char *argv[]);
+int compage_main(int argc, const char *argv[]);
 
 #endif

@@ -407,13 +407,13 @@ int compage_doPthreads(void){
     return 0;
 }
 
-void compage_help(char *appName){
+void compage_help(const char *appName){
     printf("USAGE:\n");
     printf("\t%s generate/gen <fname>  - generate default config file as <fname>\n", appName);
     printf("\t%s <fname>               - use <fname config file\n", appName);
 }
 
-int compage_main(int argc, char *argv[]){
+int compage_main(int argc, const char *argv[]){
     /* parse input */
     if(argc < 2){
         compage_help(argv[0]);
