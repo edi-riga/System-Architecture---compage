@@ -413,7 +413,7 @@ void compage_help(const char *appName){
     printf("\t%s <fname>               - use <fname config file\n", appName);
 }
 
-int compage_main(int argc, const char *argv[]){
+int compage_main(int argc, char *argv[]){
     /* parse input */
     if(argc < 2){
         compage_help(argv[0]);
