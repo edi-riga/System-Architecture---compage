@@ -92,7 +92,7 @@ const char* handler##_handler_id __attribute__((section("compage"))) = \
 
 #define COMPAGE_HANDLER(handler) \
 void* (*handler##_handler)(void*) __attribute__((section("compage"))) = \
-handler;
+(void*(*)(void*))handler;
 
 #define COMPAGE_PDATA_DEFAULT(handler, pdata) \
 void* handler##_pdata_default __attribute__((section("compage"))) = \

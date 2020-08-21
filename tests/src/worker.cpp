@@ -36,8 +36,7 @@ static pdata_t worker_pdataDefualt = {
 };
 
 /* worker */
-static void *worker(void *p){
-    pdata_t *pdata = (pdata_t*)p;
+static void *worker(pdata_t *pdata){
 
     printf("Worker thread - starting\n");
     printf("val_int8:   %d\n",   pdata->val_int8);
