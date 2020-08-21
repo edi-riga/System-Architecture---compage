@@ -6,6 +6,6 @@ extern "C"{
 #include "compage.h"
 }
 
-int main(int argc, char *argv[]){
+int main(int argc, const char *argv[]){
     return compage_main(argc, argv);
 }
