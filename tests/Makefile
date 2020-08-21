@@ -2,7 +2,7 @@ CC:=gcc
 CPP:=g++
 CROSS_COMPILE?=
 
-CFLAGS:=-Wall
+CFLAGS:=-Wall -O2 -fno-toplevel-reorder
 LFLAGS:=
 
 SRC:=$(shell find . -name "*.c")
