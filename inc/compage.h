@@ -61,6 +61,7 @@ typedef struct compage_t{
 
 #ifdef __cplusplus
     #include <typeinfo>
+    #define typeof(t) decltype(t)
     #define COMPAGE_TYPEID(x) *(short*)typeid(x).name()
 #else
     #define COMPAGE_TYPEID(x) _Generic((x), \
@@ -135,6 +136,27 @@ COMPAGE_PDATA_SIZE(handler, pdata)
 COMPAGE_PDATA_ADD_CONFIG_ID(handler, config)            \
 COMPAGE_PDATA_ADD_CONFIG_TYPE(handler, type, config)    \
 COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config)
+
+/* the famous container_of macro, the macro retreives the member container
+ * structure when given a member of this function (reference name and address).
+ * Macro takes the following arguments
+ * - container_t   data type of the encapsulating structure
+ * - member_ref    name / reference of the member whoms address we are passing
+ * - member_addr   the address of the member
+ *
+ * For example, we could retreive compage_t from its pdata member with:
+ *     CONTAINER_OF(compage_t, pdata, pdata_ptr) */
+#define CONTAINER_OF(container_t, member_ref, member_addr) \
+((container_t*)( \
+  (uint64_t)member_addr - \
+  (uint64_t)(((container_t*)0)->member_ref) \
+))
+
+/* Retreive components ID as it is originally described in the configuration 
+ * INI file */
+#define COMPAGE_GET_COMPONENT_ID(p) \
+CONTAINER_OF(compage_t, pdata, p)->id
+
 
 #define COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config);
 #define COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, __VA_ARGS__)
