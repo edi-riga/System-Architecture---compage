@@ -18,6 +18,7 @@ typedef struct {
     float    val_float;
     double   val_double;
     char*    val_char;
+    char*    val_char_null;
 } pdata_t;
 
 /* default configuration */
@@ -33,6 +34,7 @@ static pdata_t worker_pdataDefualt = {
     .val_float  = 9,
     .val_double = 10,
     .val_char  = (char*)"test",
+    .val_char_null = NULL,
 };
 
 /* worker */
@@ -45,12 +47,12 @@ static void *worker(pdata_t *pdata){
     printf("val_uint16: %u\n",   pdata->val_uint16);
     printf("val_int32:  %d\n",   pdata->val_int32);
     printf("val_uint32: %u\n",   pdata->val_uint32);
-    printf("val_int64:  %ld\n", pdata->val_int64);
-    printf("val_uint64: %lu\n", pdata->val_uint64);
+    printf("val_int64:  %ld\n",  pdata->val_int64);
+    printf("val_uint64: %lu\n",  pdata->val_uint64);
     printf("val_float:  %f\n",   pdata->val_float);
     printf("val_double: %f\n",   pdata->val_double);
     printf("val_char:   %s\n",   pdata->val_char);
-    //printf("Worker data - z: %f\n", pdata->z);
+    printf("val_char:   %s\n",   (pdata->val_char_null==NULL) ? "NULL":"NOT NULL");
     printf("Worker thread - stopping\n");
     return NULL;
 }
@@ -61,7 +63,7 @@ COMPAGE_REGISTER(worker, worker_pdataDefualt);
 COMPAGE_PDATA_ADD_CONFIGS(worker, pdata_t, 
     val_int8, val_uint8, val_int16, val_uint16,
     val_int32, val_uint32, val_int64, val_uint64,
-    val_float, val_double, val_char)
+    val_float, val_double, val_char, val_char_null)
 //COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_float);
 //COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_double);
 //COMPAGE_PDATA_ADD_CONFIG(worker, pdata_t, val_char);
