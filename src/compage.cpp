@@ -33,7 +33,7 @@ static compage_t *head;
 /* convert representation from type to string */
 static char *compage_getValueStr(char *buf, size_t bufSize, size_t type, void *addr){
     // debug
-    _D("Type: 0x%x", (unsigned)type);
+    _D("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(addr));
 
     switch(type){
         case 'b': /* bool     */
@@ -70,7 +70,11 @@ static char *compage_getValueStr(char *buf, size_t bufSize, size_t type, void *a
             snprintf(buf, bufSize, "%f", *(double*)addr);
             return buf;
         case 0x6350: /* char* */
-            snprintf(buf, bufSize, "%s", *(char**)addr);
+            if( *(char**)addr == NULL ){   /* check if string is NULL */
+                buf[0]='\0';
+            } else{
+                snprintf(buf, bufSize, "%s", *(char**)addr);
+            }
             return buf;
         default:
             snprintf(buf, bufSize, "<Data type not supported>");
@@ -118,7 +122,11 @@ static int compage_setValueType(void *dst, const void *src, size_t type){
             *(double*)dst = atof((char*)src);
             return 0;
         case 0x6350: /* char* */
-            *(char**)dst = strdup((char*)src);
+            if( ((char*)src)[0] == '\0' ){ /* check if string is supposed to be NULL */
+                *(char**)dst = NULL;
+            } else {
+                *(char**)dst = strdup((char*)src);
+            }
             return 0;
         default:
             return -1;
