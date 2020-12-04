@@ -15,6 +15,8 @@ OBJ:=$(subst lib/,obj/,$(OBJ))
 OBJ:=$(subst .cpp,.o,$(OBJ))
 OBJ:=$(subst .c,.o,$(OBJ))
 
+DEFINES?=
+
 OUT:=out/libcompage.a out/libcompage.so
 DIR:=$(sort $(dir $(OBJ))) $(sort $(dir $(OUT)))
 INC:=-Iinc -Ilib
@@ -40,13 +42,13 @@ out/libcompage.so:$(OBJ)
 	$(CROSS_COMPILE)$(CC) -o $@ $(OBJ) -shared
 
 obj/%.o: src/%.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
 
 obj/%.o: src/%.cpp
-	$(CROSS_COMPILE)$(CPP) $(CFLAGS) $(INC) -c -o $@ $<
+	$(CROSS_COMPILE)$(CPP) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
 
 obj/ini/%.o: lib/ini/%.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
 
 clean:
 	rm -fr $(DIR)
