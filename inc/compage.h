@@ -55,7 +55,7 @@ typedef struct compage_t{
     struct configBase   *recordCommon; // pointer to the common compage parameters
     struct configOption *recordConfig; // pointer to compage configuration
     void *(*handler)(void*);           // handler to call
-    void *pdata;                       // private data structure to call handle with
+    char pdata[];                      // private data structure to call handle with
 } compage_t;
 
 

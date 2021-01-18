@@ -2,13 +2,11 @@ CC:=gcc
 CPP:=g++
 CROSS_COMPILE?=
 
-CFLAGS:=-Wall -O2 -fno-toplevel-reorder
+CFLAGS:=-Wall -O2 -fno-toplevel-reorder -g
 LFLAGS:=
 
-SRC:=$(shell find . -name "*.c")
-SRC+=$(shell find . -name "*.cpp")
-#SRC+=$(shell find ../src -name "*.c")
-#SRC+=$(shell find ../src -name "*.cpp")
+SRC:=$(shell find src -name "*.c")
+SRC+=$(shell find src -name "*.cpp")
 OBJ:=$(subst ../src/,./obj/,$(SRC))
 OBJ:=$(subst src/,obj/,$(OBJ))
 OBJ:=$(subst .cpp,.o,$(OBJ))

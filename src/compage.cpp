@@ -134,6 +134,18 @@ static int compage_setValueType(void *dst, const void *src, size_t type){
 }
 
 
+static void compage_freeValue(void *dst, size_t type){
+    // debug
+    _D("Type: 0x%x", (unsigned)type);
+
+    /* char* */
+    if( (type == 0x6350) && (*(char**)dst) ){
+          free(*(char**)dst);
+    }
+}
+
+
+
 /*************************** SUB-API - SECTIONS *******************************/
 /* write configuration section's content into stream */
 static void compage_sectionsToStream(FILE *stream){
@@ -221,58 +233,6 @@ static void *compage_sectionsFindConfig(const char *id){
 }
 
 /**************************** SUB-API - ENTRY *********************************/
-static compage_t *compage_entryAlloc(const char *id){
-    compage_t *entry = (compage_t*)malloc(sizeof(compage_t));
-    entry->id     = strdup(id);
-
-    entry->enabled      = 1;
-    entry->next         = NULL;
-    entry->recordCommon = NULL;
-    entry->recordConfig = NULL;
-    entry->handler      = NULL;
-    entry->pdata        = NULL;
-
-    return entry;
-}
-
-static void compage_entryDealloc(compage_t *entry){
-    // TODO: error checking
-    free(entry->pdata);
-    free(entry);
-}
-
-
-static void compage_entryAdd(compage_t *entry){
-    entry->next = head;
-    head = entry;
-}
-
-static void compage_entryRemove(compage_t *entry){
-    compage_t **indir = &head;
-
-    while(*indir != entry)
-        indir = &((*indir)->next);
-
-    *indir = entry->next;
-}
-
-
-static int compage_entryParseBase(compage_t *entry, struct configBase *cfg){
-    entry->recordCommon = cfg;
-    entry->recordConfig = cfg->options;
-    entry->handler      = cfg->handler;
-
-    // duplicate pdata structure (TODO: error checking)
-    entry->pdata  = (void*)malloc(cfg->pdataSize);
-    memcpy(entry->pdata, cfg->pdataDefault, cfg->pdataSize);
-    return 0;
-}
-
-static int compage_entryParseEnable(compage_t *entry, const char *value){
-    entry->enabled = atoi(value);
-    return 0;
-}
-
 static int compage_entryParsePdata(compage_t *entry, const char *key, const char *value){
     char *start = (char*)entry->recordConfig;
     char *stop  = (char*)compage_getSectionStop();
@@ -299,6 +259,69 @@ static int compage_entryParsePdata(compage_t *entry, const char *key, const char
     return -1;
 }
 
+static int compage_entryFreePdata(compage_t *entry){
+    char *start = (char*)entry->recordConfig;
+    char *stop  = (char*)compage_getSectionStop();
+
+    while((start < stop) && (*(size_t*)start != DELIMETER)){
+        char *configId = *(char**)start;
+        start += sizeof(configId);
+
+        size_t configType = *(size_t*)start;
+        start += sizeof(configType);
+
+        size_t configOffset = *(size_t*)start;
+        start += sizeof(configOffset);
+
+        compage_freeValue((char*)entry->pdata + configOffset, configType);
+    }
+
+    return 0;
+}
+
+static compage_t *compage_entryAlloc(const char *id){
+    compage_t *entry = (compage_t*)malloc(sizeof(compage_t));
+    entry->id     = strdup(id);
+
+    entry->enabled      = 1;
+    entry->next         = NULL;
+    entry->recordCommon = NULL;
+    entry->recordConfig = NULL;
+    entry->handler      = NULL;
+
+    return entry;
+}
+
+static void compage_entryDealloc(compage_t *entry){
+    /* check if entry pdata has data to free */
+    compage_entryFreePdata(entry);
+    /* free entrie's ID */
+    free((void*)entry->id);
+    /* free the entry */
+    free(entry);
+}
+
+
+static void compage_entryAdd(compage_t *entry){
+    entry->next = head;
+    head = entry;
+}
+
+static compage_t *compage_entryRemove(compage_t *entry){
+    compage_t **indir = &head;
+
+    while(*indir != entry)
+        indir = &((*indir)->next);
+
+    *indir = entry->next;
+    return entry;
+}
+
+static int compage_entryParseEnable(compage_t *entry, const char *value){
+    entry->enabled = atoi(value);
+    return 0;
+}
+
 static compage_t *compage_entryFind(const char *id){
     compage_t *it = head;
 
@@ -307,6 +330,19 @@ static compage_t *compage_entryFind(const char *id){
             return it;
 
         it = it->next;
+    }
+
+    return NULL;
+}
+
+static compage_t **compage_entryFindReference(const char *id){
+    compage_t **it = &head;
+
+    while(*it != NULL){
+        if(strcmp((*it)->id, id) == 0)
+            return it;
+
+        it = &((*it)->next);
     }
 
     return NULL;
@@ -323,6 +359,40 @@ static void compage_entryPrint(){
 
         it = it->next;
     }
+}
+
+static int compage_entryParseBase(compage_t *entry, struct configBase *cfg){
+    entry->recordCommon = cfg;
+    entry->recordConfig = cfg->options;
+    entry->handler      = cfg->handler;
+
+    /* duplicate pdata structure
+     * what we do here might seem strange, but in fact, instead of allocating 
+     * separate buffer for the pdata, we would like to increase the entry size
+     * to and have pdata at the end of compage_t structure, thiw allows us to 
+     * get data from the structure even when the user passes us pdata address
+     * for more information, check the holy "container_of" macro (as used in 
+     * Linux kernel)
+     *
+     * to achieve this, we first find the reference to the entry (this would be
+     * the linked list's next element address), which we further reallocate */
+    compage_t **entryRef = compage_entryFindReference(entry->id);
+    if(entryRef == NULL){
+        _E("Unexpected error during compage internal structure creation, exiting...");
+        _exit(1);
+    }
+
+    /* now we have the reference, let's realloc
+     * note that realloc keeps the contents of the memory */
+    *entryRef = (compage_t*)realloc(*entryRef, sizeof(compage_t) + cfg->pdataSize);
+    if(entryRef == NULL){
+        _E("Realloc failed, data has been lost, exiting...");
+        _exit(1);
+    }
+
+    /* finally, we just copy the default data structure */
+    memcpy((*entryRef)->pdata, cfg->pdataDefault, cfg->pdataSize);
+    return 0;
 }
 
 
@@ -450,7 +520,15 @@ int compage_main(int argc, char *argv[]){
     }
 
     _I("COMPAGE: main thread going to sleep");
-    pause();
+    /* Actually let's wait for any thread to finish, if this happens => cleanup */
+    compage_t *it = head;
+    compage_t *it_cleanup;
+    while( it!=NULL ){
+        pthread_join(it->pid, NULL);
+        it_cleanup = it;
+        it = it->next;
+        compage_entryDealloc(compage_entryRemove(it_cleanup));
+    }
 
     return 0;
 }
