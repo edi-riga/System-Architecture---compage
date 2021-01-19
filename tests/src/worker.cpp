@@ -39,21 +39,22 @@ static pdata_t worker_pdataDefualt = {
 
 /* worker */
 static void *worker(pdata_t *pdata){
+    const char *componentID = COMPAGE_GET_COMPONENT_ID(pdata);
 
-    printf("Worker thread - starting\n");
-    printf("val_int8:   %d\n",   pdata->val_int8);
-    printf("val_uint8:  %u\n",   pdata->val_uint8);
-    printf("val_int16:  %d\n",   pdata->val_int16);
-    printf("val_uint16: %u\n",   pdata->val_uint16);
-    printf("val_int32:  %d\n",   pdata->val_int32);
-    printf("val_uint32: %u\n",   pdata->val_uint32);
-    printf("val_int64:  %ld\n",  pdata->val_int64);
-    printf("val_uint64: %lu\n",  pdata->val_uint64);
-    printf("val_float:  %f\n",   pdata->val_float);
-    printf("val_double: %f\n",   pdata->val_double);
-    printf("val_char:   %s\n",   pdata->val_char);
-    printf("val_char:   %s\n",   (pdata->val_char_null==NULL) ? "NULL":"NOT NULL");
-    printf("Worker thread - stopping\n");
+    printf("%s - starting\n", componentID);
+    printf("%s - val_int8:      %d\n",  componentID, pdata->val_int8);
+    printf("%s - val_uint8:     %u\n",  componentID, pdata->val_uint8);
+    printf("%s - val_int16:     %d\n",  componentID, pdata->val_int16);
+    printf("%s - val_uint16:    %u\n",  componentID, pdata->val_uint16);
+    printf("%s - val_int32:     %d\n",  componentID, pdata->val_int32);
+    printf("%s - val_uint32:    %u\n",  componentID, pdata->val_uint32);
+    printf("%s - val_int64:     %ld\n", componentID, pdata->val_int64);
+    printf("%s - val_uint64:    %lu\n", componentID, pdata->val_uint64);
+    printf("%s - val_float:     %f\n",  componentID, pdata->val_float);
+    printf("%s - val_double:    %f\n",  componentID, pdata->val_double);
+    printf("%s - val_char:      %s\n",  componentID, pdata->val_char);
+    printf("%s - val_char_null: %s\n",  componentID, (pdata->val_char_null==NULL) ? "NULL":"NOT NULL");
+    printf("%s - stopping\n", componentID);
     return NULL;
 }
 
