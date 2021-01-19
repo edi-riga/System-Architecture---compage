@@ -6,6 +6,16 @@
 
 /* API:
  * =============================================================================
+ * COMPAGE_REGISTER(handler)
+ * =============================================================================
+ * @brief registers component handler with the COMPAGE framework without any 
+ *     associated data structure 
+ *
+ * @param handler - pointer to the component function (handler) with prototype: 
+ *                  "void* (*handler)(void *pdata)
+ *
+ *
+ * =============================================================================
  * COMPAGE_REGISTER(handler, pdata)
  * =============================================================================
  * @brief registers component handler and its associated data structure with 
@@ -18,7 +28,7 @@
  *
  *
  * =============================================================================
- * COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...)
+ * COMPAGE_PDATA_ADD_CONFIG(handler, type, ...)
  * =============================================================================
  * @brief marks pdata structure variables (single or multiple) with the 
  *     framework for the configuration.
@@ -29,7 +39,74 @@
  *                  typedef)
  * @param ...     - list of member variables which should be marked for 
  *                  configuration
+ *
+ *
+ * =============================================================================
+ * COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...)
+ * =============================================================================
+ * @brief marks pdata structure variables (single or multiple) with the 
+ *     framework for the configuration. (Same as COMPAGE_PDATA_ADD_CONFIG)
+ *
+ * @param handler - pointer to the component function (handler) with prototype: 
+ *                  "void* (*handler)(void *pdata)
+ * @param type    - type of the struct container (often a type created with
+ *                  typedef)
+ * @param ...     - list of member variables which should be marked for 
+ *                  configuration
+ *
+ *
+ *
+ * -----------------------------------------------------------------------------
+ * int compage_createDefaultConfig(const char *fpath)
+ * -----------------------------------------------------------------------------
+ * @brief generates default configuration file following ini format in the 
+ *     fpath, the configuration components are determined by the 
+ *     COMPAGE_REGISTER macros, while parameters by the COMPAGE_PDATA_ADD_CONFIG 
+ *     macro
+ *
+ * @param fpath - path to the configuration file to be created
+ *
+ *
+ * -----------------------------------------------------------------------------
+ * int compage_initFromConfig(const char *fpath);
+ * -----------------------------------------------------------------------------
+ * @brief initialize compage structures using .ini configuration file, the 
+ *     structures are to be used by COMPAGE to launch the components
+ *
+ * @param fpath - path to the configuration file describing COMPAGE components
+ *
+ *
+ * -----------------------------------------------------------------------------
+ * int compage_doPthreads();
+ * -----------------------------------------------------------------------------
+ * @brief launch COMPAGE components using pthreads API
+ *
+ *
+ * -----------------------------------------------------------------------------
+ * int compage_main(int argc, char *argv[]);
+ * -----------------------------------------------------------------------------
+ * @brief this is the straight forward way of using compage, we basically reuse
+ *     implementation provided to us by the compage framework, there is a help
+ *     message, check it out. Most importantly, the instantation would look like
+ *     this:
+ *
+ *     extern "C"{
+ *         #include "compage.h"
+ *     }
+ *     
+ *     int main(int argc, char *argv[]){
+ *         return compage_main(argc, argv);
+ *     }
+ *
+ *
+ * -----------------------------------------------------------------------------
+ * void compage_debugSections(void);
+ * -----------------------------------------------------------------------------
+ * TODO 
+ *
+ *
  * */
+
 
 struct configOption{
     char   *id;
@@ -103,6 +180,10 @@ pdata;
 size_t handler##_pdata_size __attribute__((section("compage"))) = \
 sizeof(pdata);
 
+#define COMPAGE_PDATA_SIZE_ZERO(handler) \
+size_t handler##_pdata_size __attribute__((section("compage"))) = \
+0;
+
 #define COMPAGE_PDATA_ADD_CONFIG_ID(handler, config) \
 const char* handler##_pdata_##config##_id __attribute__((section("compage"))) = \
 #config; 
@@ -115,24 +196,37 @@ COMPAGE_TYPEID(((type*)0)->config);
 size_t handler##_pdata_##config##_offset __attribute__((section("compage"))) = \
 (size_t)&((type*)0)->config;
 
+/* register worker, without pdata:
+ * - delimeter (to distinguish workers)
+ * - pointer to handler id
+ * - pointer to handler function
+ * - pointer to default pdata structure (NULL)
+ * - size of the pdata structure (0) */
+#define COMPAGE_REGISTER_1(handler)        \
+COMPAGE_DELIMETER(handler, DELIMETER)      \
+COMPAGE_HANDLER_ID(handler)                \
+COMPAGE_HANDLER(handler)                   \
+COMPAGE_PDATA_DEFAULT(handler, NULL)       \
+COMPAGE_PDATA_SIZE_ZERO(handler)
+
 /* register worker, the memory layout is as follows:
  * - delimeter (to distinguish workers)
  * - pointer to handler id
  * - pointer to handler function
  * - pointer to default pdata structure
  * - size of the pdata structure */
-#define COMPAGE_REGISTER(handler, pdata) \
-COMPAGE_DELIMETER(handler, DELIMETER)    \
-COMPAGE_HANDLER_ID(handler)              \
-COMPAGE_HANDLER(handler)                 \
-COMPAGE_PDATA_DEFAULT(handler, &pdata)   \
+#define COMPAGE_REGISTER_2(handler, pdata) \
+COMPAGE_DELIMETER(handler, DELIMETER)      \
+COMPAGE_HANDLER_ID(handler)                \
+COMPAGE_HANDLER(handler)                   \
+COMPAGE_PDATA_DEFAULT(handler, &pdata)     \
 COMPAGE_PDATA_SIZE(handler, pdata)
 
 /* add structs elements configuration option, the memory layout is as follows:
  * - pointer to types ID string
  * - unsigned integer identifying type
  * - offset from the start of the structure */
-#define COMPAGE_PDATA_ADD_CONFIG(handler, type, config) \
+#define COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config) \
 COMPAGE_PDATA_ADD_CONFIG_ID(handler, config)            \
 COMPAGE_PDATA_ADD_CONFIG_TYPE(handler, type, config)    \
 COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config)
@@ -158,20 +252,20 @@ COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config)
 CONTAINER_OF(compage_t, pdata, p)->id
 
 
-#define COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config);
-#define COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_3(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_4(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_3(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_5(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_4(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_6(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_5(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_7(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_6(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_8(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_7(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_9(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_8(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_10(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_9(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_11(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_10(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_12(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_11(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_13(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_12(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_14(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_13(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config);
+#define COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_3(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_4(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_3(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_5(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_4(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_6(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_5(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_7(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_6(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_8(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_7(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_9(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_8(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_10(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_9(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_11(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_10(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_12(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_11(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_13(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_12(handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_14(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_13(handler, type, __VA_ARGS__)
 
 #define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
 #define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
@@ -182,9 +276,17 @@ CONTAINER_OF(compage_t, pdata, p)->id
 #define ARGUMENT_COUNT_PREPEND(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, N, ...) N
 #define ARGUMENT_INDEXES() 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-#define COMPAGE_PDATA_ADD_CONFIGS_(N, handler, type, ...) CONCATENATE(COMPAGE_PDATA_ADD_CONFIGS_,N)(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...) COMPAGE_PDATA_ADD_CONFIGS_(ARGUMENT_COUNT(__VA_ARGS__), handler, type, __VA_ARGS__)
+#define COMPAGE_PDATA_ADD_CONFIGS_(N, handler, type, ...) \
+CONCATENATE(COMPAGE_PDATA_ADD_CONFIGS_,N)(handler, type, __VA_ARGS__)
 
+#define COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...) \
+COMPAGE_PDATA_ADD_CONFIGS_(ARGUMENT_COUNT(__VA_ARGS__), handler, type, __VA_ARGS__)
+
+#define COMPAGE_PDATA_ADD_CONFIG(handler, type, ...) \
+COMPAGE_PDATA_ADD_CONFIGS_(ARGUMENT_COUNT(__VA_ARGS__), handler, type, __VA_ARGS__)
+
+#define COMPAGE_REGISTER_(N, ...) CONCATENATE(COMPAGE_REGISTER_,N)(__VA_ARGS__)
+#define COMPAGE_REGISTER(...) COMPAGE_REGISTER_(ARGUMENT_COUNT(__VA_ARGS__), __VA_ARGS__)
 
 /* create default configuration file */
 int compage_createDefaultConfig(const char *fpath);
