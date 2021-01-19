@@ -301,7 +301,10 @@ int compage_initFromConfig(const char *fpath);
 int compage_doPthreads();
 
 /* just ptint whatever we have in the section */
-void compage_debugSections(void);
+void compage_debugSections();
+
+/* just ptint whatever we have in the section */
+void compage_printComponentList();
 
 /* default compage framework entry point for convinience */
 int compage_main(int argc, char *argv[]);

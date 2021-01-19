@@ -442,6 +442,45 @@ void compage_debugSections(){
     compage_sectionsToStream(stdout);
 }
 
+void compage_printComponentList(){
+    char *start = (char*)compage_getSectionStart();
+    char *stop  = (char*)compage_getSectionStop();
+
+    while(start < stop){
+        size_t delimeter = *(size_t*)start;
+        start += sizeof(delimeter);
+
+        char *handlerId = *(char**)start;
+        start += sizeof(handlerId);
+        _I("COMPONENT: %s", handlerId);
+
+        void *handlerProc = *(void**)start;
+        start += sizeof(handlerProc);
+
+        void *pdataDefault = *(void**)start;
+        start += sizeof(pdataDefault);
+
+        size_t pdataSize = *(size_t*)start;
+        start += sizeof(pdataSize);
+
+        while((start < stop) && (*(size_t*)start != DELIMETER)){
+            char *configId = *(char**)start;
+            start += sizeof(configId);
+
+            size_t configType = *(size_t*)start;
+            start += sizeof(configType);
+
+            size_t configOffset = *(size_t*)start;
+            start += sizeof(configOffset);
+
+            char buf[256];
+            compage_getValueStr(buf, sizeof(buf), configType, (char*)pdataDefault + configOffset);
+            _I(" - (config) %-20s => (default) %s", configId, buf);
+        }
+
+    }
+}
+
 int compage_createDefaultConfig(const char *fpath){
     FILE *fd;
 
@@ -489,6 +528,7 @@ void compage_help(const char *appName){
     printf("USAGE:\n");
     printf("\t%s generate/gen <fname>  - generate default config file as <fname>\n", appName);
     printf("\t%s <fname>               - use <fname config file\n", appName);
+    printf("\t%s list                  - list available components\n", appName);
 }
 
 int compage_main(int argc, char *argv[]){
@@ -505,6 +545,12 @@ int compage_main(int argc, char *argv[]){
             return 0;
         }
         return compage_createDefaultConfig(argv[2]);
+    }
+
+    /* list available components (TODO: generic command API) */
+    if( (strcmp(argv[1], "list") == 0) ){
+        compage_printComponentList();
+        return 0;
     }
 
     _I("COMPAGE: loading configuration");
