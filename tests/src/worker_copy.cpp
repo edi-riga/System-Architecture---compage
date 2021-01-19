@@ -61,7 +61,7 @@ static void *worker0(pdata_t *pdata){
 /* register this worker and worker's configuration */
 COMPAGE_REGISTER(worker0, worker_pdataDefualt);
 //COMPAGE_PDATA_ADD_CONFIG_MULTIPLE(worker, pdata_t, val_int8);
-COMPAGE_PDATA_ADD_CONFIGS(worker0, pdata_t, 
+COMPAGE_PDATA_ADD_CONFIG(worker0, pdata_t, 
     val_int8, val_uint8, val_int16, val_uint16,
     val_int32, val_uint32, val_int64, val_uint64,
     val_float, val_double, val_char, val_char_null)
