@@ -10,6 +10,10 @@ extern "C" {
 #include "compage.h"
 }
 
+/* we register a dummy component without an actual procedure, just to make sure
+ * the compage section will exits */
+COMPAGE_REGISTER(NULL)
+
 /* when we use custom sections, linker creates these labels, which we can use
  * to localize section and calculate its size */
 extern unsigned __start_compage;
@@ -168,6 +172,9 @@ static void compage_sectionsToStream(FILE *stream){
         size_t pdataSize = *(size_t*)start;
         start += sizeof(pdataSize);
 
+        if(handlerProc == NULL)
+            continue;
+
         fprintf(stream, "[%s]\n", handlerId);
         fprintf(stream, "handler=%s\n", handlerId);
         fprintf(stream, "enabled=1\n");
@@ -216,6 +223,9 @@ static void *compage_sectionsFindConfig(const char *id){
 
         size_t pdataSize = *(size_t*)start;
         start += sizeof(pdataSize);
+
+        if(handlerProc == NULL)
+            continue;
 
         while((start < stop) && (*(size_t*)start != DELIMETER)){
             char *configId = *(char**)start;
@@ -442,7 +452,8 @@ void compage_debugSections(){
     compage_sectionsToStream(stdout);
 }
 
-void compage_printComponentList(){
+unsigned compage_getDefinedComponentCount(){
+    unsigned componentCount = 0;
     char *start = (char*)compage_getSectionStart();
     char *stop  = (char*)compage_getSectionStop();
 
@@ -452,7 +463,6 @@ void compage_printComponentList(){
 
         char *handlerId = *(char**)start;
         start += sizeof(handlerId);
-        _I("COMPONENT: %s", handlerId);
 
         void *handlerProc = *(void**)start;
         start += sizeof(handlerProc);
@@ -463,6 +473,52 @@ void compage_printComponentList(){
         size_t pdataSize = *(size_t*)start;
         start += sizeof(pdataSize);
 
+        if(handlerProc == NULL)
+            continue;
+
+        while((start < stop) && (*(size_t*)start != DELIMETER)){
+            char *configId = *(char**)start;
+            start += sizeof(configId);
+
+            size_t configType = *(size_t*)start;
+            start += sizeof(configType);
+
+            size_t configOffset = *(size_t*)start;
+            start += sizeof(configOffset);
+
+            char buf[256];
+            compage_getValueStr(buf, sizeof(buf), configType, (char*)pdataDefault + configOffset);
+        }
+        componentCount++;
+    }
+
+    return componentCount;
+}
+
+void compage_printComponentList(){
+    char *start = (char*)compage_getSectionStart();
+    char *stop  = (char*)compage_getSectionStop();
+
+    while(start < stop){
+        size_t delimeter = *(size_t*)start;
+        start += sizeof(delimeter);
+
+        char *handlerId = *(char**)start;
+        start += sizeof(handlerId);
+
+        void *handlerProc = *(void**)start;
+        start += sizeof(handlerProc);
+
+        void *pdataDefault = *(void**)start;
+        start += sizeof(pdataDefault);
+
+        size_t pdataSize = *(size_t*)start;
+        start += sizeof(pdataSize);
+
+        if(handlerProc == NULL)
+            continue;
+
+        _I("COMPONENT: %s", handlerId);
         while((start < stop) && (*(size_t*)start != DELIMETER)){
             char *configId = *(char**)start;
             start += sizeof(configId);
@@ -532,6 +588,12 @@ void compage_help(const char *appName){
 }
 
 int compage_main(int argc, char *argv[]){
+    /* check if there is anything in compage segment */
+    if(compage_getDefinedComponentCount() == 0){
+        _I("No compage components have been defined");
+        return 1;
+    }
+
     /* parse input */
     if(argc < 2){
         compage_help(argv[0]);
