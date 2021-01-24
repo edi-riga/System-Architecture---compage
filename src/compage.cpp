@@ -632,7 +632,10 @@ int compage_main(int argc, char *argv[]){
     compage_t *it = head;
     compage_t *it_cleanup;
     while( it!=NULL ){
-        pthread_join(it->pid, NULL);
+		// join thread only if it is enabled
+		if(it->enabled)
+        	pthread_join(it->pid, NULL);
+
         it_cleanup = it;
         it = it->next;
         compage_entryDealloc(compage_entryRemove(it_cleanup));
