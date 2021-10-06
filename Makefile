@@ -3,7 +3,7 @@ CPP?=g++
 CROSS_COMPILE?=
 
 CFLAGS?=
-CFLAGS:=$(CFLAGS) -Wall -fPIC
+CFLAGS:=-Wall -fPIC $(CFLAGS)
 LFLAGS?=
 LFLAGS:=$(LFLAGS)
 AFLAGS:=rcs
@@ -25,7 +25,7 @@ LIB:=-lpthread
 
 .POSIX:
 
-all:$(DIR) $(OUT) compile_tests done
+all: $(OUT) compile_tests done
 
 done:
 	@echo
