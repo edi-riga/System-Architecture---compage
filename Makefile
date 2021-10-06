@@ -1,10 +1,13 @@
-CC:=gcc
-CPP:=g++
+CC?=gcc
+CPP?=g++
 CROSS_COMPILE?=
 
-CFLAGS:=-Wall -fPIC
-LFLAGS:=
+CFLAGS?=
+CFLAGS:=$(CFLAGS) -Wall -fPIC
+LFLAGS?=
+LFLAGS:=$(LFLAGS)
 AFLAGS:=rcs
+DEFINES?=
 
 SRC:=$(shell find ./src -name "*.c")
 SRC+=$(shell find ./src -name "*.cpp")
@@ -14,8 +17,6 @@ OBJ:=$(subst src/,obj/,$(SRC))
 OBJ:=$(subst lib/,obj/,$(OBJ))
 OBJ:=$(subst .cpp,.o,$(OBJ))
 OBJ:=$(subst .c,.o,$(OBJ))
-
-DEFINES?=
 
 OUT:=out/libcompage.a out/libcompage.so
 DIR:=$(sort $(dir $(OBJ))) $(sort $(dir $(OUT)))
