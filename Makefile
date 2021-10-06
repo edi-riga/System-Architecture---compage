@@ -23,6 +23,8 @@ DIR:=$(sort $(dir $(OBJ))) $(sort $(dir $(OUT)))
 INC:=-Iinc -Ilib
 LIB:=-lpthread
 
+.POSIX:
+
 all:$(DIR) $(OUT) compile_tests done
 
 done:
@@ -36,10 +38,10 @@ compile_tests:
 $(DIR):
 	mkdir -p $@
 
-out/libcompage.a:$(OBJ)
+out/libcompage.a: $(DIR) $(OBJ)
 	$(CROSS_COMPILE)$(AR) $(AFLAGS) $@ $(OBJ)
 
-out/libcompage.so:$(OBJ)
+out/libcompage.so: $(DIR) $(OBJ)
 	$(CROSS_COMPILE)$(CC) -o $@ $(OBJ) -shared
 
 obj/%.o: src/%.c
