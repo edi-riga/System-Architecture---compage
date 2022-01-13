@@ -1,41 +1,38 @@
 CC:=gcc
-CPP:=g++
+CXX:=g++
 CROSS_COMPILE?=
 
-CFLAGS:=-Wall -O2 -fno-toplevel-reorder -g
-LFLAGS:=
-
-SRC:=$(shell find src -name "*.c")
-SRC+=$(shell find src -name "*.cpp")
-OBJ:=$(subst ../src/,./obj/,$(SRC))
-OBJ:=$(subst src/,obj/,$(OBJ))
-OBJ:=$(subst .cpp,.o,$(OBJ))
-OBJ:=$(subst .c,.o,$(OBJ))
+CFLAGS+=-Wall -O2 -fno-toplevel-reorder -g
+LFLAGS?=
 
 OUT:=out/main.elf
-DIR:=$(sort $(dir $(OBJ))) $(sort $(dir $(OUT)))
-INC:=-I../inc
+INC:=-Iinc -I../inc
 LIB:=-L../out -l:libcompage.a -lpthread 
+
+SRC:=$(shell find src -name "*.c" -o -name "*.cpp")
+OBJ:=$(SRC:src/%=obj/%.o)
+DEP:=$(OBJ:obj/%.o=dep/%.d)
+
+DIR:=$(sort $(dir $(OBJ) $(DEP) $(OUT)))
 
 all:$(DIR) $(OUT)
 
 $(DIR):
 	mkdir -p $@
 
-$(OUT):$(OBJ)
-	$(CROSS_COMPILE)$(CPP) $(LFLAGS) $(OBJ) -o $(OUT) $(LIB)
+$(OUT): $(OBJ)
+	$(CROSS_COMPILE)$(CXX) $(LFLAGS) $(OBJ) -o $(OUT) $(LIB)
 
-obj/%.o: src/%.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+obj/%.c.o: src/%.c
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) -MMD -MP -MF $(patsubst obj/%.o,dep/%.d,$@) -c -o $@ $<
 
-obj/%.o: src/%.cpp
-	$(CROSS_COMPILE)$(CPP) $(CFLAGS) $(INC) -c -o $@ $<
-
-obj/%.o: ../src/%.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) -c -o $@ $<
-
-obj/%.o: ../src/%.cpp
-	$(CROSS_COMPILE)$(CPP) $(CFLAGS) $(INC) -c -o $@ $<
+obj/%.cpp.o: src/%.cpp
+	$(CROSS_COMPILE)$(CXX) $(CFLAGS) $(INC) -MMD -MP -MF $(patsubst obj/%.o,dep/%.d,$@) -c -o $@ $<
 
 clean:
-	rm -fr $(DIR)
+	rm -fr $(DIR) tags
+
+ctags:
+	ctags --language-force=c -R -o tags .
+
+-include $(DEP)
