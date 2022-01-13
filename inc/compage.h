@@ -1,312 +1,95 @@
 #ifndef _COMPAGE_H_
 #define _COMPAGE_H_
 
-#include <stdio.h>
-#include <pthread.h>
+#include "compage_register.h"
 
-/* API:
- * =============================================================================
- * COMPAGE_REGISTER(handler)
- * =============================================================================
- * @brief registers component handler with the COMPAGE framework without any 
- *     associated data structure 
+
+
+/** @def COMPAGE_REGISTER_ID(id)
  *
- * @param handler - pointer to the component function (handler) with prototype: 
- *                  "void* (*handler)(void *pdata)
+ * @brief Register the given string identifier with the COMPAGE framework. The
+ *        macro will store address to the given string in a "compage_ids" table
+ *        / segment, but the address of this location (double pointer) is
+ *        further used as unique ID. Multiple components registered with the
+ *        same ID should trigger a runtime error.
  *
+ * @param id A string identifier of the component.
+ **/
+#define COMPAGE_REGISTER_ID(id)  _COMPAGE_REGISTER_ID(id)
+
+
+/** @def COMPAGE_REGISTER_PDATA(id, pdata)
  *
- * =============================================================================
- * COMPAGE_REGISTER(handler, pdata)
- * =============================================================================
- * @brief registers component handler and its associated data structure with 
- *     the COMPAGE framework.
+ * @brief Associate private data structure for the given string identifier with
+ *        the COMPAGE framework. The macro will store id's hash sum, size of the
+ *        private data structure and the its actual address in a "copmage_pdata"
+ *        table / segment. Multiple registrations with the same string ID should
+ *        trigger a runtime error.
  *
- * @param handler - pointer to the component function (handler) with prototype: 
- *                  "void* (*handler)(void *pdata)
- * @param pdata   - pointer to (default) data structure which is expected as 
- *                  pdata
+ * @param id A string identifier of the component.
+ * @param pdata Address of the default private data structure of the component.
+ **/
+#define COMPAGE_REGISTER_PDATA(id, pdata) _COMPAGE_REGISTER_PDATA(id, pdata)
+
+
+/** @def COMPAGE_REGISTER_INIT(id, handler)
  *
+ * @brief Associate initializtion routine (handler) with the component associated
+ *        to the given ID. The macro will store component's hash sum, and actual
+ *        address of the handler in a "compage_init" table / segment. Multiple
+ *        registrations with the same string ID should trigger a runtime error.
  *
- * =============================================================================
- * COMPAGE_PDATA_ADD_CONFIG(handler, type, ...)
- * =============================================================================
- * @brief marks pdata structure variables (single or multiple) with the 
- *     framework for the configuration.
+ * @param id A string identifier of the component.
+ * @param handler Initalization routine with the following protoype
+ *        "compageStatus_t handler(pdata_t *pdata);", where the pdata_t is the
+ *        custom data type of the component.
+ **/
+#define COMPAGE_REGISTER_INIT(id, handler) _COMPAGE_REGISTER_INIT(id, handler)
+
+
+/** @def COMPAGE_REGISTER_LOOP(id, handler)
  *
- * @param handler - pointer to the component function (handler) with prototype: 
- *                  "void* (*handler)(void *pdata)
- * @param type    - type of the struct container (often a type created with
- *                  typedef)
- * @param ...     - list of member variables which should be marked for 
- *                  configuration
+ * @brief Associate control loop routine (handler) with the component associated
+ *        to the given ID. The macro will store component's hash sum, and actual
+ *        address of the handler in a "compage_loop" table / segment. Multiple
+ *        registrations with the same string ID should trigger a runtime error.
  *
+ * @param id A string identifier of the component.
+ * @param handler Control loop's routine with the following protoype
+ *        "compageStatus_t handler(pdata_t *pdata);", where the pdata_t is the
+ *        custom data type of the component.
+ **/
+#define COMPAGE_REGISTER_LOOP(id, handler) _COMPAGE_REGISTER_LOOP(id, handler)
+
+
+/** @def COMPAGE_REGISTER_EXIT(id, handler)
  *
- * =============================================================================
- * COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...)
- * =============================================================================
- * @brief marks pdata structure variables (single or multiple) with the 
- *     framework for the configuration. (Same as COMPAGE_PDATA_ADD_CONFIG)
+ * @brief Associate exit routine (handler) with the component associated to the
+ *        given ID. The macro will store component's hash sum, and actual
+ *        address of the handler in a "compage_exit" table / segment. Multiple
+ *        registrations with the same string ID should trigger a runtime error.
  *
- * @param handler - pointer to the component function (handler) with prototype: 
- *                  "void* (*handler)(void *pdata)
- * @param type    - type of the struct container (often a type created with
- *                  typedef)
- * @param ...     - list of member variables which should be marked for 
- *                  configuration
+ * @param id A string identifier of the component.
+ * @param handler Deinitialization routine with the following protoype
+ *        "compageStatus_t handler(pdata_t *pdata);", where the pdata_t is the
+ *        custom data type of the component.
+ **/
+#define COMPAGE_REGISTER_EXIT(id, handler) _COMPAGE_REGISTER_EXIT(id, handler)
+
+
+/** @def COMPAGE_REGISTER_EXIT(id, handler)
  *
+ * @brief Mark component's private data structure variables (single or multiple)
+ *        with the component associated with given ID. The macro will store 
+ *        component's hash sum, address of the name for the configurable
+ *        variable, variable's type id and its offset in the pdata structure in
+ *        a "compage_config" table / segment.
  *
- *
- * -----------------------------------------------------------------------------
- * int compage_createDefaultConfig(const char *fpath)
- * -----------------------------------------------------------------------------
- * @brief generates default configuration file following ini format in the 
- *     fpath, the configuration components are determined by the 
- *     COMPAGE_REGISTER macros, while parameters by the COMPAGE_PDATA_ADD_CONFIG 
- *     macro
- *
- * @param fpath - path to the configuration file to be created
- *
- *
- * -----------------------------------------------------------------------------
- * int compage_initFromConfig(const char *fpath);
- * -----------------------------------------------------------------------------
- * @brief initialize compage structures using .ini configuration file, the 
- *     structures are to be used by COMPAGE to launch the components
- *
- * @param fpath - path to the configuration file describing COMPAGE components
- *
- *
- * -----------------------------------------------------------------------------
- * int compage_doPthreads();
- * -----------------------------------------------------------------------------
- * @brief launch COMPAGE components using pthreads API
- *
- *
- * -----------------------------------------------------------------------------
- * int compage_main(int argc, char *argv[]);
- * -----------------------------------------------------------------------------
- * @brief this is the straight forward way of using compage, we basically reuse
- *     implementation provided to us by the compage framework, there is a help
- *     message, check it out. Most importantly, the instantation would look like
- *     this:
- *
- *     extern "C"{
- *         #include "compage.h"
- *     }
- *     
- *     int main(int argc, char *argv[]){
- *         return compage_main(argc, argv);
- *     }
- *
- *
- * -----------------------------------------------------------------------------
- * void compage_debugSections(void);
- * -----------------------------------------------------------------------------
- * TODO 
- *
- *
- * */
-
-
-struct configOption{
-    char   *id;
-    size_t  type;
-    size_t  offset;
-};
-
-struct configBase{
-    size_t  delimeter;
-    char   *handlerId;
-    void*  (*handler)(void*);
-    void   *pdataDefault;
-    size_t  pdataSize;
-    struct configOption options[];
-};
-
-/* this structure is created with every working thread */
-typedef struct compage_t{
-    pthread_t         pid;             // id used for launching/releasing threads
-    struct compage_t *next;            // we are using forwardly linked list format
-    const char       *id;              // worker's id, as present in config file
-    int               enabled;         // determines if worker should be enabled
-    struct configBase   *recordCommon; // pointer to the common compage parameters
-    struct configOption *recordConfig; // pointer to compage configuration
-    void *(*handler)(void*);           // handler to call
-    char pdata[];                      // private data structure to call handle with
-} compage_t;
-
-
-#ifdef __cplusplus
-    #include <typeinfo>
-    #define typeof(t) decltype(t)
-    #define COMPAGE_TYPEID(x) *(short*)typeid(x).name()
-#else
-    #define COMPAGE_TYPEID(x) _Generic((x), \
-        _Bool:    'b',   \
-        int8_t:   'a',   \
-        uint8_t:  'h',   \
-        int16_t:  's',   \
-        uint16_t: 't',   \
-        int32_t:  'i',   \
-        uint32_t: 'j',   \
-        int64_t:  'l',   \
-        uint64_t: 'm',   \
-        float:    'f',   \
-        double:   'd',   \
-        char:     'a',   \
-        char*:    0x6350,\
-        default:  0xffffffff)
-#endif
-
-#define DELIMETER   0xdeadbeef
-
-#define COMPAGE_DELIMETER(handler, delim) \
-size_t handler##_delimeter __attribute__((section("compage"))) = \
-delim;
-
-#define COMPAGE_HANDLER_ID(handler) \
-const char* handler##_handler_id __attribute__((section("compage"))) = \
-#handler;
-
-#define COMPAGE_HANDLER(handler) \
-void* (*handler##_handler)(void*) __attribute__((section("compage"))) = \
-(void*(*)(void*))handler;
-
-#define COMPAGE_PDATA_DEFAULT(handler, pdata) \
-void* handler##_pdata_default __attribute__((section("compage"))) = \
-pdata;
-
-#define COMPAGE_PDATA_SIZE(handler, pdata) \
-size_t handler##_pdata_size __attribute__((section("compage"))) = \
-sizeof(pdata);
-
-#define COMPAGE_PDATA_SIZE_ZERO(handler) \
-size_t handler##_pdata_size __attribute__((section("compage"))) = \
-0;
-
-#define COMPAGE_PDATA_ADD_CONFIG_ID(handler, config) \
-const char* handler##_pdata_##config##_id __attribute__((section("compage"))) = \
-#config; 
-
-#define COMPAGE_PDATA_ADD_CONFIG_TYPE(handler, type, config) \
-size_t handler##_pdata_##config##_type __attribute__((section("compage"))) = \
-COMPAGE_TYPEID(((type*)0)->config);
-
-#define COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config) \
-size_t handler##_pdata_##config##_offset __attribute__((section("compage"))) = \
-(size_t)&((type*)0)->config;
-
-/* register worker, without pdata:
- * - delimeter (to distinguish workers)
- * - pointer to handler id
- * - pointer to handler function
- * - pointer to default pdata structure (NULL)
- * - size of the pdata structure (0) */
-#define COMPAGE_REGISTER_1(handler)        \
-COMPAGE_DELIMETER(handler, DELIMETER)      \
-COMPAGE_HANDLER_ID(handler)                \
-COMPAGE_HANDLER(handler)                   \
-COMPAGE_PDATA_DEFAULT(handler, NULL)       \
-COMPAGE_PDATA_SIZE_ZERO(handler)
-
-/* register worker, the memory layout is as follows:
- * - delimeter (to distinguish workers)
- * - pointer to handler id
- * - pointer to handler function
- * - pointer to default pdata structure
- * - size of the pdata structure */
-#define COMPAGE_REGISTER_2(handler, pdata) \
-COMPAGE_DELIMETER(handler, DELIMETER)      \
-COMPAGE_HANDLER_ID(handler)                \
-COMPAGE_HANDLER(handler)                   \
-COMPAGE_PDATA_DEFAULT(handler, &pdata)     \
-COMPAGE_PDATA_SIZE(handler, pdata)
-
-/* add structs elements configuration option, the memory layout is as follows:
- * - pointer to types ID string
- * - unsigned integer identifying type
- * - offset from the start of the structure */
-#define COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config) \
-COMPAGE_PDATA_ADD_CONFIG_ID(handler, config)            \
-COMPAGE_PDATA_ADD_CONFIG_TYPE(handler, type, config)    \
-COMPAGE_PDATA_ADD_CONFIG_OFFSET(handler, type, config)
-
-/* the famous container_of macro, the macro retreives the member container
- * structure when given a member of this function (reference name and address).
- * Macro takes the following arguments
- * - container_t   data type of the encapsulating structure
- * - member_ref    name / reference of the member whoms address we are passing
- * - member_addr   the address of the member
- *
- * For example, we could retreive compage_t from its pdata member with:
- *     CONTAINER_OF(compage_t, pdata, pdata_ptr) */
-#define CONTAINER_OF(container_t, member_ref, member_addr) \
-((container_t*)( \
-  (uint64_t)member_addr - \
-  (uint64_t)(((container_t*)0)->member_ref) \
-))
-
-/* Retreive components ID as it is originally described in the configuration 
- * INI file */
-#define COMPAGE_GET_COMPONENT_ID(p) \
-CONTAINER_OF(compage_t, pdata, p)->id
-
-
-#define COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config);
-#define COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_1(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_3(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_2(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_4(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_3(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_5(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_4(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_6(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_5(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_7(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_6(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_8(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_7(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_9(handler, type, config, ...)  COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_8(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_10(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_9(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_11(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_10(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_12(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_11(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_13(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_12(handler, type, __VA_ARGS__)
-#define COMPAGE_PDATA_ADD_CONFIGS_14(handler, type, config, ...) COMPAGE_PDATA_ADD_CONFIG_SINGLE(handler, type, config); COMPAGE_PDATA_ADD_CONFIGS_13(handler, type, __VA_ARGS__)
-
-#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
-#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
-#define CONCATENATE2(arg1, arg2)  arg1##arg2
-
-#define ARGUMENT_COUNT(...) ARGUMENT_COUNT_(__VA_ARGS__, ARGUMENT_INDEXES())
-#define ARGUMENT_COUNT_(...) ARGUMENT_COUNT_PREPEND(__VA_ARGS__)
-#define ARGUMENT_COUNT_PREPEND(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, N, ...) N
-#define ARGUMENT_INDEXES() 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-
-#define COMPAGE_PDATA_ADD_CONFIGS_(N, handler, type, ...) \
-CONCATENATE(COMPAGE_PDATA_ADD_CONFIGS_,N)(handler, type, __VA_ARGS__)
-
-#define COMPAGE_PDATA_ADD_CONFIGS(handler, type, ...) \
-COMPAGE_PDATA_ADD_CONFIGS_(ARGUMENT_COUNT(__VA_ARGS__), handler, type, __VA_ARGS__)
-
-#define COMPAGE_PDATA_ADD_CONFIG(handler, type, ...) \
-COMPAGE_PDATA_ADD_CONFIGS_(ARGUMENT_COUNT(__VA_ARGS__), handler, type, __VA_ARGS__)
-
-#define COMPAGE_REGISTER_(N, ...) CONCATENATE(COMPAGE_REGISTER_,N)(__VA_ARGS__)
-#define COMPAGE_REGISTER(...) COMPAGE_REGISTER_(ARGUMENT_COUNT(__VA_ARGS__), __VA_ARGS__)
-
-/* create default configuration file */
-int compage_createDefaultConfig(const char *fpath);
-
-/* initialize compage structure list from config file */
-int compage_initFromConfig(const char *fpath);
-
-/* initialize compage structure from default configuration */
-//int compage_initFromDefault();
-
-/* launch threads using pthreads API */
-int compage_doPthreads();
-
-/* just ptint whatever we have in the section */
-void compage_debugSections();
-
-/* just ptint whatever we have in the section */
-void compage_printComponentList();
-
-/* default compage framework entry point for convinience */
-int compage_main(int argc, char *argv[]);
+ * @param id A string identifier of the component.
+ * @param type Type of the struct container (often a type defined with typedef)
+ * @param ... List of variables that should be marked for the configuration.
+ **/
+#define COMPAGE_REGISTER_CONFIG(id, type, ...) \
+  _COMPAGE_REGISTER_CONFIG(id, type, ...)
 
 #endif
