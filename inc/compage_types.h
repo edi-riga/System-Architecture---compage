@@ -36,6 +36,14 @@ typedef struct {
   void*              id; // address of the streang representation pointer
   compageStatus_t    (*handler)(void*); // exit handler
 } compageExit_t;
+
+
+typedef struct {
+  void*        id;     // component's id
+  const char*  name;   // name of the configuration variable
+  uint32_t     type;   // type identifiactor for the variable
+  size_t       offset; // variable's offset in the struct
+} compageConfig_t;
 #pragma pack(pop)
 
 
@@ -43,7 +51,8 @@ typedef struct {
 #ifdef __cplusplus
     #include <typeinfo>
     #define typeof(t) decltype(t)
-    #define COMPAGE_TYPEID(x) *(short*)typeid(x).name()
+    #define COMPAGE_TYPEID(x) *(uint32_t*)typeid(x).name()
+
 #else
     #define COMPAGE_TYPEID(x) _Generic((x), \
         _Bool:    'b',   \
