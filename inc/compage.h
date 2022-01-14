@@ -21,7 +21,7 @@
 /** @def COMPAGE_REGISTER_PDATA(id, pdata)
  *
  * @brief Associate private data structure for the given string identifier with
- *        the COMPAGE framework. The macro will store id's hash sum, size of the
+ *        the COMPAGE framework. The macro will store component's id, size of the
  *        private data structure and the its actual address in a "copmage_pdata"
  *        table / segment. Multiple registrations with the same string ID should
  *        trigger a runtime error.
@@ -35,7 +35,7 @@
 /** @def COMPAGE_REGISTER_INIT(id, handler)
  *
  * @brief Associate initializtion routine (handler) with the component associated
- *        to the given ID. The macro will store component's hash sum, and actual
+ *        to the given ID. The macro will store component's id, and actual
  *        address of the handler in a "compage_init" table / segment. Multiple
  *        registrations with the same string ID should trigger a runtime error.
  *
@@ -50,7 +50,7 @@
 /** @def COMPAGE_REGISTER_LOOP(id, handler)
  *
  * @brief Associate control loop routine (handler) with the component associated
- *        to the given ID. The macro will store component's hash sum, and actual
+ *        to the given ID. The macro will store component's id (addr), and actual
  *        address of the handler in a "compage_loop" table / segment. Multiple
  *        registrations with the same string ID should trigger a runtime error.
  *
@@ -65,7 +65,7 @@
 /** @def COMPAGE_REGISTER_EXIT(id, handler)
  *
  * @brief Associate exit routine (handler) with the component associated to the
- *        given ID. The macro will store component's hash sum, and actual
+ *        given ID. The macro will store component's id (address) and actual
  *        address of the handler in a "compage_exit" table / segment. Multiple
  *        registrations with the same string ID should trigger a runtime error.
  *
@@ -80,8 +80,8 @@
 /** @def COMPAGE_REGISTER_EXIT(id, handler)
  *
  * @brief Mark component's private data structure variables (single or multiple)
- *        with the component associated with given ID. The macro will store 
- *        component's hash sum, address of the name for the configurable
+ *        for the component associated with given ID. The macro will store
+ *        component's id (address), address of the name for the configurable
  *        variable, variable's type id and its offset in the pdata structure in
  *        a "compage_config" table / segment.
  *
@@ -89,7 +89,6 @@
  * @param type Type of the struct container (often a type defined with typedef)
  * @param ... List of variables that should be marked for the configuration.
  **/
-#define COMPAGE_REGISTER_CONFIG(id, type, ...) \
-  _COMPAGE_REGISTER_CONFIG(id, type, ...)
+#define COMPAGE_ADD_CONFIG(id, type, ...) _COMPAGE_ADD_CONFIG(id, type, __VA_ARGS__)
 
 #endif
