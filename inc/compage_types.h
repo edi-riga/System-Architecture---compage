@@ -10,6 +10,7 @@ typedef enum {
   COMPAGE_DUPLICATE_COMPONENTS,
   COMPAGE_WRONG_ARGS,
   COMPAGE_ERROR,
+  COMPAGE_SYSTEM_ERROR,
 } compageStatus_t;
 
 
@@ -47,7 +48,7 @@ typedef struct {
 typedef struct {
   void*        id;     // component's id
   const char*  name;   // name of the configuration variable
-  uint32_t     type;   // type identifiactor for the variable
+  uint64_t     type;   // type identifiactor for the variable
   size_t       offset; // variable's offset in the struct
 } compageConfig_t;
 #pragma pack(pop)
@@ -57,23 +58,24 @@ typedef struct {
 #ifdef __cplusplus
     #include <typeinfo>
     #define typeof(t) decltype(t)
-    #define COMPAGE_TYPEID(x) *(uint32_t*)typeid(x).name()
+    #define COMPAGE_TYPEID(x) *(uint16_t*)typeid(x).name()
 
 #else
     #define COMPAGE_TYPEID(x) _Generic((x), \
-        _Bool:    'b',   \
-        int8_t:   'a',   \
-        uint8_t:  'h',   \
-        int16_t:  's',   \
-        uint16_t: 't',   \
-        int32_t:  'i',   \
-        uint32_t: 'j',   \
-        int64_t:  'l',   \
-        uint64_t: 'm',   \
-        float:    'f',   \
-        double:   'd',   \
-        char:     'a',   \
-        char*:    0x6350,\
+        _Bool:        'b',    \
+        int8_t:       'a',    \
+        uint8_t:      'h',    \
+        int16_t:      's',    \
+        uint16_t:     't',    \
+        int32_t:      'i',    \
+        uint32_t:     'j',    \
+        int64_t:      'l',    \
+        uint64_t:     'm',    \
+        float:        'f',    \
+        double:       'd',    \
+        char:         'a',    \
+        char*:        0x6350, \
+        const char*:  0x4b50, \
         default:  0xffffffff)
 #endif
 
