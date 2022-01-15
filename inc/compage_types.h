@@ -1,9 +1,15 @@
 #ifndef _COMPAGE_TYPES_H_
 #define _COMPAGE_TYPES_H_
 
+#include <stdint.h>
+#include <stdlib.h>
+
 typedef enum {
   COMPAGE_SUCCESS=0,
-  COMPAGE_ERR,
+  COMPAGE_NO_COMPONENTS,
+  COMPAGE_DUPLICATE_COMPONENTS,
+  COMPAGE_WRONG_ARGS,
+  COMPAGE_ERROR,
 } compageStatus_t;
 
 

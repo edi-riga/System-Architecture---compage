@@ -91,4 +91,8 @@
  **/
 #define COMPAGE_ADD_CONFIG(id, type, ...) _COMPAGE_ADD_CONFIG(id, type, __VA_ARGS__)
 
+
+compageStatus_t compage_main(int argc, char *argv[]);
+
+
 #endif
