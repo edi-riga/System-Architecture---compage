@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
+#include <errno.h>
 
 #include "compage.h"
 #include "compage_hash.h"
@@ -127,6 +128,150 @@ static void print_help_message(const char *appName){
 }
 
 
+/* convert representation from type to string */
+static char *get_config_string_value(char *buf, size_t bufSize, size_t type, void *addr){
+  // debug
+  _I("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(addr));
+
+  switch(type){
+    case 'b': /* bool     */
+      snprintf(buf, bufSize, "%s", (*(int8_t*)addr) ? "true" : "false");
+      return buf;
+    case 'a': /* int8_t   */
+      snprintf(buf, bufSize, "%d", *(int8_t*)addr);
+      return buf;
+    case 'h': /* uint8_t  */
+      snprintf(buf, bufSize, "%u", *(uint8_t*)addr);
+      return buf;
+    case 's': /* int16_t  */
+      snprintf(buf, bufSize, "%d", *(int16_t*)addr);
+      return buf;
+    case 't': /* uint16_t */
+      snprintf(buf, bufSize, "%u", *(uint16_t*)addr);
+      return buf;
+    case 'i': /* int32_t  */
+      snprintf(buf, bufSize, "%d", *(int32_t*)addr);
+      return buf;
+    case 'j': /* uint32_t */
+      snprintf(buf, bufSize, "%u", *(uint32_t*)addr);
+      return buf;
+    case 'l': /* int64_t  */
+      snprintf(buf, bufSize, "%ld", *(int64_t*)addr);
+      return buf;
+    case 'm': /* uint64_t */
+      snprintf(buf, bufSize, "%lu", *(uint64_t*)addr);
+      return buf;
+    case 'f': /* float    */
+      snprintf(buf, bufSize, "%f", *(float*)addr);
+      return buf;
+    case 'd': /* double   */
+      snprintf(buf, bufSize, "%f", *(double*)addr);
+      return buf;
+    case 0x6350: /* char* */
+    case 0x4b50: /* const char* */
+      if( *(char**)addr == NULL ){   /* check if string is NULL */
+        buf[0]='\0';
+      } else{
+        snprintf(buf, bufSize, "%s", *(char**)addr);
+      }
+      return buf;
+    default:
+      snprintf(buf, bufSize, "<Data type not supported>");
+      return buf;
+  }
+}
+
+static compagePdata_t* locate_pdata_segment(void *id){
+  compagePdata_t *pdata_start, *pdata_stop;
+
+  pdata_start  = (compagePdata_t*)get_segment_pdata_start();
+  pdata_stop   = (compagePdata_t*)get_segment_pdata_stop();
+
+  while(pdata_start < pdata_stop){
+    if(pdata_start->id == id){
+      return pdata_start;
+    }
+
+    pdata_start++;
+  }
+
+  return NULL;
+}
+
+
+static compageStatus_t write_default_config(FILE *fd){
+  compageId_t *ids_start, *ids_stop;
+  compagePdata_t *pdata; //*pdata_start, *pdata_stop;
+  compageConfig_t *config_start, *config_stop;
+  char buf[256];
+
+  ids_start = (compageId_t*)get_segment_ids_start();
+  ids_stop  = (compageId_t*)get_segment_ids_stop();
+
+  while(ids_start < ids_stop){
+
+    /* ignore dummy component */
+    if(!ids_start->name){
+      ids_start++;
+      continue;
+    }
+
+    _D("Component added: %s@%p", ids_start->name, ids_start);
+
+    /* write section's name that is also the component's name */
+    if(fprintf(fd, "[%s]\n", ids_start->name) < 0){
+      _SE("Failed to write to the configuration file");
+      return COMPAGE_SYSTEM_ERROR;
+    }
+
+    /* write component's */
+    if(fprintf(fd, "enabled=1\n") < 0){
+      _SE("Failed to write to the configuration file");
+      return COMPAGE_SYSTEM_ERROR;
+    }
+
+    /* find respective private data structure for further use */
+    if( (pdata = locate_pdata_segment(ids_start)) == NULL ){
+      putc('\n', fd);
+      ids_start++; // no pdata found, go to the next component
+      continue;
+    }
+    
+    /* parse and save corresponding configurations */
+    config_start = (compageConfig_t*)get_segment_config_start();
+    config_stop  = (compageConfig_t*)get_segment_config_stop();
+    while(config_start < config_stop){
+
+      /* ignore dummy configuration */
+      if(config_start->id == NULL){
+        config_start++;
+        continue;
+      }
+
+      /* filter nonrelevant configurations */
+      if(config_start->id != ids_start){
+        config_start++;
+        continue;
+      }
+
+      /* save config's name and its default value */
+      _D("Configuration added: %s@%p (type:%lu)", config_start->name, config_start, config_start->type);
+      fprintf(fd, "%s=%s\n", config_start->name,
+        get_config_string_value(buf, 256, config_start->type,
+          (void*)(((uint64_t)pdata->addr)+config_start->offset)));
+
+      config_start++;
+    }
+    putc('\n', fd);
+    ids_start++;
+  }
+  
+
+  return COMPAGE_SUCCESS;
+}
+
+
+
 /* ============================================================================ */
 /* PUBLIC API */
 /* ============================================================================ */
@@ -159,19 +304,67 @@ compageStatus_t compage_check_segments(){
 
 
 compageStatus_t compage_print_components(){
-  _I("List command!");
+  compageId_t *ids_start, *ids_stop;
+  compageConfig_t *config_start, *config_stop;
+
+  ids_start = (compageId_t*)get_segment_ids_start();
+  ids_stop  = (compageId_t*)get_segment_ids_stop();
+  while(ids_start < ids_stop){
+
+    /* ignore dummy component */
+    if(!ids_start->name){
+      ids_start++;
+      continue;
+    }
+
+    printf("COMPONENT - %s\n", ids_start->name);
+
+    config_start = (compageConfig_t*)get_segment_config_start();
+    config_stop  = (compageConfig_t*)get_segment_config_stop();
+    while(config_start < config_stop){
+
+      /* ignore dummy configuration */
+      if(config_start->id == NULL){
+        config_start++;
+        continue;
+      }
+
+      if(config_start->id != ids_start){
+        config_start++;
+        continue;
+      }
+
+      printf("  PARAM - %s (type: 0x%x)\n", config_start->name, config_start->type);
+      config_start++;
+    }
+    ids_start++;
+  }
+
   return COMPAGE_SUCCESS;
 }
 
-compageStatus_t compage_generate_config(const char *optarg){
-  _I("Generate command: %s", optarg);
-  return COMPAGE_SUCCESS;
+
+compageStatus_t compage_generate_config(const char *fpath){
+  compageStatus_t status;
+  FILE *fd;
+
+  fd = fopen(fpath, "w");
+  if(fd == NULL){
+    _SE("Failed to open configuration file");
+    return COMPAGE_SYSTEM_ERROR;
+  }
+
+  status = write_default_config(fd);
+  fclose(fd);
+  return status;
 }
+
 
 compageStatus_t compage_init_from_file(const char *fname){
   _I("Initializing framework from file: %s", fname);
   return COMPAGE_SUCCESS;
 }
+
 
 compageStatus_t compage_main(int argc, char *argv[]){
   compageStatus_t status;
@@ -206,17 +399,17 @@ compageStatus_t compage_main(int argc, char *argv[]){
   int c;
   while( (c = getopt_long(argc, argv, "hlg:", long_options, NULL)) != -1){
     switch(c){
-      case 'l': // LIST COMPONENTS
+      case 'l':  // LIST COMPONENTS
         return compage_print_components();
 
-      case 'g': // GENERATE CONFIGURATION FILE
+      case 'g':  // GENERATE CONFIGURATION FILE
         return compage_generate_config(optarg);
 
-      case 'h': // HELP
+      case 'h':  // HELP
         print_help_message(argv[0]);
         return COMPAGE_SUCCESS;
 
-      default:
+      default:   // UNRECOGNIZED OPTION
         print_help_message(argv[0]);
         return COMPAGE_WRONG_ARGS;
     }
