@@ -1,5 +1,5 @@
-CC?=gcc
-CPP?=g++
+CC:=gcc
+CPP:=g++
 CROSS_COMPILE?=
 
 CFLAGS?=
@@ -25,7 +25,8 @@ LIB:=-lpthread
 
 .POSIX:
 
-all: $(OUT) compile_tests done
+all: $(OUT) done
+#all: $(OUT) compile_tests done
 
 done:
 	@echo
@@ -42,7 +43,7 @@ out/libcompage.a: $(DIR) $(OBJ)
 	$(CROSS_COMPILE)$(AR) $(AFLAGS) $@ $(OBJ)
 
 out/libcompage.so: $(DIR) $(OBJ)
-	$(CROSS_COMPILE)$(CC) -o $@ $(OBJ) -shared
+	$(CROSS_COMPILE)$(CPP) -o $@ $(OBJ) -shared
 
 obj/%.o: src/%.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
