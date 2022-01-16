@@ -4,6 +4,10 @@
 #include <getopt.h>
 #include <errno.h>
 
+#include <unistd.h> // tmp
+
+#include "ini/ini.h"
+
 #include "compage.h"
 #include "compage_hash.h"
 #include "notification.h"
@@ -28,6 +32,9 @@ compageExit_t dummy_exit __attribute__((used,section("compage_exit"))) =
 compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
   {NULL, NULL, 0, 0};
 
+
+/* We utilize a linked list structure for the compage components */
+static compage_t *llistHead;
 
 /* When using custom segments, linker creates start/stop labels that further can
  * be used for segment localization and in parser logic */
@@ -181,18 +188,159 @@ static char *get_config_string_value(char *buf, size_t bufSize, size_t type, voi
   }
 }
 
-static compagePdata_t* locate_pdata_segment(void *id){
-  compagePdata_t *pdata_start, *pdata_stop;
+/* convert representation from string to type */
+static int config_set_value_by_type(void *dst, const void *src, size_t type){
+  // debug
+  _D("Type: 0x%x", (unsigned)type);
 
-  pdata_start  = (compagePdata_t*)get_segment_pdata_start();
-  pdata_stop   = (compagePdata_t*)get_segment_pdata_stop();
+  switch(type){
+    case 'b': /* bool     */
+      *(int8_t*)dst = atoi((char*)src);
+      return 0;
+    case 'a': /* int8_t   */
+      *(int8_t*)dst = atoi((char*)src);
+      return 0;
+    case 'h': /* uint8_t  */
+      *(uint8_t*)dst = atoi((char*)src);
+      return 0;
+    case 's': /* int16_t  */
+      *(int16_t*)dst = atoi((char*)src);
+      return 0;
+    case 't': /* uint16_t */
+      *(uint16_t*)dst = atoi((char*)src);
+      return 0;
+    case 'i': /* int32_t  */
+      *(int32_t*)dst = atoi((char*)src);
+      return 0;
+    case 'j': /* uint32_t */
+      *(uint32_t*)dst = atoi((char*)src);
+      return 0;
+    case 'l': /* int64_t  */
+      *(int64_t*)dst = atoll((char*)src);
+      return 0;
+    case 'm': /* uint64_t */
+      *(uint64_t*)dst = atoll((char*)src);
+      return 0;
+    case 'f': /* float    */
+      *(float*)dst = atof((char*)src);
+      return 0;
+    case 'd': /* double   */
+      *(double*)dst = atof((char*)src);
+      return 0;
+    case 0x6350: /* char* */
+    case 0x4b50: /* const char* */
+      if( ((char*)src)[0] == '\0' ){ /* check if string is supposed to be NULL */
+          *(char**)dst = NULL;
+      } else {
+          *(char**)dst = strdup((char*)src);
+      }
+      return 0;
+    default:
+      return -1;
+  }
+}
 
-  while(pdata_start < pdata_stop){
-    if(pdata_start->id == id){
-      return pdata_start;
+
+
+
+static compageId_t* locate_ids_segment(const char *name){
+  compageId_t *start, *stop;
+
+  start = (compageId_t*)get_segment_ids_start();
+  stop  = (compageId_t*)get_segment_ids_stop();
+
+  while(start < stop){
+    if( strcmp(start->name, name) == 0){
+      return start;
     }
 
-    pdata_start++;
+    start++;
+  }
+
+  return NULL;
+}
+
+static compageConfig_t* locate_config_segment(const char *name){
+  compageConfig_t *start, *stop;
+
+  start = (compageConfig_t*)get_segment_config_start();
+  stop  = (compageConfig_t*)get_segment_config_stop();
+
+  while(start < stop){
+    if(strcmp(start->name, name) == 0){
+      return start;
+    }
+
+    start++;
+  }
+
+  return NULL;
+}
+
+static compagePdata_t* locate_pdata_segment(void *id){
+  compagePdata_t *start, *stop;
+
+  start  = (compagePdata_t*)get_segment_pdata_start();
+  stop   = (compagePdata_t*)get_segment_pdata_stop();
+
+  while(start < stop){
+    if(start->id == id){
+      return start;
+    }
+
+    start++;
+  }
+
+  return NULL;
+}
+
+// TODO: Unify handler locate functions
+static compageInit_t* locate_init_segment(void *id){
+  compageInit_t *start, *stop;
+
+  start = (compageInit_t*)get_segment_init_start();
+  stop  = (compageInit_t*)get_segment_init_stop();
+
+  while(start < stop){
+    if(start->id == id){
+      return start;
+    }
+
+    start++;
+  }
+
+  return NULL;
+}
+
+static compageLoop_t* locate_loop_segment(void *id){
+  compageLoop_t *start, *stop;
+
+  start = (compageLoop_t*)get_segment_loop_start();
+  stop  = (compageLoop_t*)get_segment_loop_stop();
+
+  while(start < stop){
+    if(start->id == id){
+      return start;
+    }
+
+    start++;
+  }
+
+  return NULL;
+}
+
+static compageExit_t* locate_exit_segment(void *id){
+  compageExit_t *start, *stop;
+
+  start = (compageExit_t*)get_segment_exit_start();
+  stop  = (compageExit_t*)get_segment_exit_stop();
+
+  while(start < stop){
+    if(start->id == id){
+      return start;
+    }
+
+    start++;
   }
 
   return NULL;
@@ -264,6 +412,170 @@ static compageStatus_t write_default_config(FILE *fd){
   return COMPAGE_SUCCESS;
 }
 
+
+static compage_t *llist_entry_alloc(){
+  compage_t *entry;
+
+  if( (entry = (compage_t*)calloc(1, sizeof(compage_t))) == NULL){
+    _SE("Failed allocate memory");
+    return NULL;
+  }
+
+  return entry;
+}
+
+
+static void llist_entry_dealloc(compage_t *entry){
+  free(entry);
+}
+
+
+static void llist_entry_add(compage_t *entry){
+  entry->next = llistHead;
+  llistHead   = entry;
+}
+
+
+static void llist_entry_remove(compage_t *entry){
+  compage_t **indir = &llistHead;
+
+  while(*indir != entry)
+    indir = &((*indir)->next);
+
+  *indir = entry->next;
+}
+
+
+static int config_init_default(compage_t *entry,
+  const char *componentName,
+  const char *configName)
+{
+  compageId_t *id;
+  compagePdata_t *pdata;
+
+  /* find if the component's configuration exists */
+  if( (id = locate_ids_segment(configName)) == NULL){
+    _E("Failed to locate component's configuration");
+    return 1;
+  }
+
+  /* find component's private data structure */
+  if( (pdata = locate_pdata_segment(id) ) == NULL){
+    _E("Failed to locate component's privatge data structure");
+    return 1;
+  }
+
+  /* find component's handlers */
+  compageInit_t *init = locate_init_segment(id);
+  compageLoop_t *loop = locate_loop_segment(id);
+  compageExit_t *exit = locate_exit_segment(id);
+  if( !init || !loop || !exit ){
+    _E("Failed to locate any of component's handlers");
+    return 1;
+  }
+
+  /* At this point we have all the required data, lets continue with
+   * the initialization of the default component's configuration */
+  if( (entry->name = strdup(componentName)) == NULL){
+    _SE("Failed allocate memory");
+    return 1;
+  }
+  if( (entry->pdata = malloc(pdata->size)) == NULL){
+    free(entry->name);
+    _SE("Failed allocate memory");
+    return 1;
+  }
+
+  memcpy(entry->pdata, pdata->addr, pdata->size);
+  entry->enabled      = 1; // initially component is always enabled
+  entry->compageId    = id;
+  entry->compagePdata = pdata;
+  entry->handlerInit  = init->handler;
+  entry->handlerLoop  = loop->handler;
+  entry->handlerExit  = exit->handler;
+  return 0;
+}
+
+static int config_parse_key_value(compage_t *entry, const char *key, const char *value){
+  compageConfig_t *config;
+
+  if( (config = locate_config_segment(key)) == NULL){
+    _W("Configuration for \"%s\" is not found", key);
+    return 0; // TODO: for now don't fail the setup, but should we?
+  }
+
+  if(config_set_value_by_type((char*)entry->pdata + config->offset,
+  value, config->type) != 0){
+    _W("Failed to set configured value");
+  }
+
+  return 0;
+}
+
+
+static void llist_entry_deinit(compage_t *entry){
+  free(entry->pdata);
+  free(entry->name);
+}
+
+
+
+static compage_t* llist_entry_find_by_name(const char *name){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(strcmp(it->name, name) == 0){
+      return it;
+    }
+
+    it = it->next;
+  }
+
+  return NULL;
+}
+
+
+static int ini_parser_handler(void *pdata,
+  const char *section, const char *key, const char *value)
+{
+
+  /* try to find entry in the forwardly linked list, if entry is nonexistsant
+   * allocate new compage_t entry, set section as its ID and add it to the
+   * linked list */
+  compage_t *entry = llist_entry_find_by_name(section);
+  if(entry == NULL){
+    if( (entry = llist_entry_alloc()) == NULL){
+      _E("Failed to allocate compage entry");
+      return 0;
+    }
+
+    /* fill the rest of the compage component's data structure */
+    if( config_init_default(entry, section, section) != 0){
+      _E("Failed to initialize compage component");
+      llist_entry_dealloc(entry);
+      return 0;
+    }
+
+    // add entry to the global llist
+    llist_entry_add(entry);
+  }
+
+
+  /* "enable" may be present, can disable the worker, while keeping its
+   * configuration in the file */
+  if(strcmp("enabled", key) == 0){
+    entry->enabled = atoi(value); // TODO: erro checking
+    return 1;
+  }
+
+
+  /* other keys are believed to correspond with default configuration */
+  if(config_parse_key_value(entry, key, value) != 0){
+    return 0;
+  }
+
+  return 1;
+}
 
 
 /* ============================================================================ */
@@ -364,8 +676,60 @@ compageStatus_t compage_generate_config(const char *fpath){
 }
 
 
-compageStatus_t compage_init_from_file(const char *fname){
-  _I("Initializing framework from file: %s", fname);
+compageStatus_t compage_init_from_file(const char *fpath){
+  if(ini_parse(fpath, ini_parser_handler, NULL) < 0){
+    _E("Failed to load \"%s\" configuration file", fpath);
+    return COMPAGE_PARSER_ERROR;
+  }
+
+  return COMPAGE_SUCCESS;
+}
+
+void *pthread_handler(compage_t *entry){
+  compageStatus_t status;
+
+  /* initialization */
+  if(entry->handlerInit){
+    /* TODO: pre-execute handler */
+    status = entry->handlerInit(entry->pdata);
+    /* TODO: return value */
+    /* TODO: post-handler */
+  }
+
+
+  /* loop */
+  if(entry->handlerLoop){
+    /* TODO: pre-execute handler */
+    status = entry->handlerLoop(entry->pdata);
+    /* TODO: return value */
+    /* TODO: post-execute handler */
+  }
+
+
+  /* exit */
+  if(entry->handlerExit){
+    /* TODO: pre-execute handler */
+    status = entry->handlerExit(entry->pdata);
+    /* TODO: return value */
+    /* TODO: post-execute handler */
+  }
+
+  return (void*)0;
+}
+
+compageStatus_t compage_launch_pthreads(){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(it->enabled){
+      if(pthread_create(&(it->pid), NULL, (void*(*)(void*))pthread_handler, it) != 0){
+        _W("Failed to initialize pthread");
+      }
+    }
+
+    it = it->next;
+  }
+
   return COMPAGE_SUCCESS;
 }
 
@@ -421,9 +785,13 @@ compageStatus_t compage_main(int argc, char *argv[]){
 
   _D("Checking (last) configuration file argument");
   if(optind < argc){
-    return compage_init_from_file(argv[optind]);
+    compage_init_from_file(argv[optind]); // TODO: error checking
   }
 
-  print_help_message(argv[0]);
+  _D("Launchig compage components using pthread API");
+  compage_launch_pthreads();
+  sleep(1);
+
+  //print_help_message(argv[0]);
   return COMPAGE_SUCCESS;
 }
