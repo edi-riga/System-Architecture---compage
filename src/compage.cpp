@@ -131,7 +131,7 @@ static void print_help_message(const char *appName){
 /* convert representation from type to string */
 static char *get_config_string_value(char *buf, size_t bufSize, size_t type, void *addr){
   // debug
-  _I("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(addr));
+  _D("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(addr));
 
   switch(type){
     case 'b': /* bool     */
@@ -224,7 +224,7 @@ static compageStatus_t write_default_config(FILE *fd){
       return COMPAGE_SYSTEM_ERROR;
     }
 
-    /* write component's */
+    /* write component's enable flag */
     if(fprintf(fd, "enabled=1\n") < 0){
       _SE("Failed to write to the configuration file");
       return COMPAGE_SYSTEM_ERROR;
@@ -236,28 +236,22 @@ static compageStatus_t write_default_config(FILE *fd){
       ids_start++; // no pdata found, go to the next component
       continue;
     }
-    
+
     /* parse and save corresponding configurations */
     config_start = (compageConfig_t*)get_segment_config_start();
     config_stop  = (compageConfig_t*)get_segment_config_stop();
     while(config_start < config_stop){
 
-      /* ignore dummy configuration */
-      if(config_start->id == NULL){
+      /* ignore dummy configuration and check if config corresponds to pdata */
+      if( (config_start->pdata) == NULL || (config_start->pdata != pdata)){
         config_start++;
         continue;
       }
 
-      /* filter nonrelevant configurations */
-      if(config_start->id != ids_start){
-        config_start++;
-        continue;
-      }
-
-      /* save config's name and its default value */
+      /* write config's name and default value */
       _D("Configuration added: %s@%p (type:%lu)", config_start->name, config_start, config_start->type);
       fprintf(fd, "%s=%s\n", config_start->name,
-        get_config_string_value(buf, 256, config_start->type,
+        get_config_string_value(buf, sizeof(buf), config_start->type,
           (void*)(((uint64_t)pdata->addr)+config_start->offset)));
 
       config_start++;
@@ -265,7 +259,7 @@ static compageStatus_t write_default_config(FILE *fd){
     putc('\n', fd);
     ids_start++;
   }
-  
+
 
   return COMPAGE_SUCCESS;
 }
@@ -306,6 +300,8 @@ compageStatus_t compage_check_segments(){
 compageStatus_t compage_print_components(){
   compageId_t *ids_start, *ids_stop;
   compageConfig_t *config_start, *config_stop;
+  compagePdata_t *pdata;
+  char buf[256];
 
   ids_start = (compageId_t*)get_segment_ids_start();
   ids_stop  = (compageId_t*)get_segment_ids_stop();
@@ -317,24 +313,32 @@ compageStatus_t compage_print_components(){
       continue;
     }
 
-    printf("COMPONENT - %s\n", ids_start->name);
+    printf("component: " COLOR_YELLOW "%s\n" COLOR_DEFAULT, ids_start->name);
 
+    /* check whether component has a registered private data structure */
+    if( (pdata = locate_pdata_segment(ids_start)) == NULL ){
+      ids_start++;
+      continue;
+    }
+
+    /* iterate through registered configuration */
     config_start = (compageConfig_t*)get_segment_config_start();
     config_stop  = (compageConfig_t*)get_segment_config_stop();
     while(config_start < config_stop){
 
-      /* ignore dummy configuration */
-      if(config_start->id == NULL){
+      /* ignore dummy configuration and check if config corresponds to pdata */
+      if( (config_start->pdata) == NULL || (config_start->pdata != pdata)){
         config_start++;
         continue;
       }
 
-      if(config_start->id != ids_start){
-        config_start++;
-        continue;
-      }
-
-      printf("  PARAM - %s (type: 0x%x)\n", config_start->name, config_start->type);
+      printf("  - parameter: " COLOR_GRAY "%s" COLOR_DEFAULT
+        " (type: 0x%.4lx; offset: %.3lu; default value: %s)\n",
+        config_start->name,
+        config_start->type,
+        config_start->offset,
+        get_config_string_value(buf, sizeof(buf), config_start->type,
+          (void*)(((uint64_t)pdata->addr)+config_start->offset)));
       config_start++;
     }
     ids_start++;

@@ -27,7 +27,7 @@
  *        trigger a runtime error.
  *
  * @param id A string identifier of the component.
- * @param pdata Address of the default private data structure of the component.
+ * @param pdata Default private data structure of the component (passed by value).
  **/
 #define COMPAGE_REGISTER_PDATA(id, pdata) _COMPAGE_REGISTER_PDATA(id, pdata)
 
@@ -86,10 +86,10 @@
  *        a "compage_config" table / segment.
  *
  * @param id A string identifier of the component.
- * @param type Type of the struct container (often a type defined with typedef)
+ * @param pdata Default private data structure of the component (passed by value).
  * @param ... List of variables that should be marked for the configuration.
  **/
-#define COMPAGE_ADD_CONFIG(id, type, ...) _COMPAGE_ADD_CONFIG(id, type, __VA_ARGS__)
+#define COMPAGE_ADD_CONFIG(id, pdata, ...) _COMPAGE_ADD_CONFIG(id, pdata, __VA_ARGS__)
 
 
 compageStatus_t compage_main(int argc, char *argv[]);
