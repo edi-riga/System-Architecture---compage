@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 typedef enum {
   COMPAGE_SUCCESS=0,
@@ -11,6 +12,7 @@ typedef enum {
   COMPAGE_WRONG_ARGS,
   COMPAGE_ERROR,
   COMPAGE_SYSTEM_ERROR,
+  COMPAGE_PARSER_ERROR,
 } compageStatus_t;
 
 
@@ -54,6 +56,19 @@ typedef struct {
 } compageConfig_t;
 #pragma pack(pop)
 
+
+typedef struct compage_t {
+  struct compage_t   *next;      // we are using forwardly linked list format
+  pthread_t           pid;       // process id used for launching/releasing threads
+  int                 enabled;   // determines if the component should be launched
+  char               *name;      // name / title of the component
+  void               *pdata;     // private data structure to call handle with
+  compageId_t        *compageId;    // address of the id struct in the compage_ids segment
+  compagePdata_t     *compagePdata; // address of the pdata struct in the compage_pdata segment
+  compageStatus_t   (*handlerInit)(void*); // initialization handler
+  compageStatus_t   (*handlerLoop)(void*); // (control) loop handler
+  compageStatus_t   (*handlerExit)(void*); // component exit handler
+} compage_t;
 
 
 #ifdef __cplusplus
