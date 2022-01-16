@@ -21,9 +21,10 @@ typedef struct {
 
 
 typedef struct {
-  void*      id;     // address of the streang representation pointer
-  void*      addr;   // address of the pdata struct
-  uint64_t   size;   // size of the pdata struct
+  void*      id;      // address of the streang representation pointer
+  void*      addr;    // address of the pdata struct
+  uint64_t   size;    // size of the pdata struct
+  uint64_t   padding;
 } compagePdata_t;
 
 
@@ -46,10 +47,10 @@ typedef struct {
 
 
 typedef struct {
-  void*        id;     // component's id
-  const char*  name;   // name of the configuration variable
-  uint64_t     type;   // type identifiactor for the variable
-  size_t       offset; // variable's offset in the struct
+  compagePdata_t*  pdata;  // component's private data structure
+  const char*      name;   // name of the configuration variable
+  uint64_t         type;   // type identifiactor for the variable
+  size_t           offset; // variable's offset in the struct
 } compageConfig_t;
 #pragma pack(pop)
 
