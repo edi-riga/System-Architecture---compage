@@ -11,12 +11,15 @@ pdata_t pdata = {"asd", 1, 2};
 
 
 compageStatus_t init(pdata_t *p){
+  printf("Executing init handler with a=%s, b=%u, c=%d\n", p->a, p->b, p->c);
   return COMPAGE_SUCCESS;
 }
 compageStatus_t loop(pdata_t *p){
+  printf("Executing loop handler with a=%s, b=%u, c=%d\n", p->a, p->b, p->c);
   return COMPAGE_SUCCESS;
 }
 compageStatus_t texit(pdata_t *p){
+  printf("Executing exit handler with a=%s, b=%u, c=%d\n", p->a, p->b, p->c);
   return COMPAGE_SUCCESS;
 }
 
