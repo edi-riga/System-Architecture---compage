@@ -26,7 +26,8 @@ typedef int (*ini_handler)(void* user, const char* section,
                            int lineno);
 #else
 typedef int (*ini_handler)(void* user, const char* section,
-                           const char* name, const char* value);
+                           const char* name, const char* value,
+                           int is_new_section);
 #endif
 
 /* Typedef for prototype of fgets-style reader function. */

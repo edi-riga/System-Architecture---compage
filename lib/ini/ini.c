@@ -99,6 +99,9 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
     int lineno = 0;
     int error = 0;
 
+    /* custom flag for detecting new section */
+    int is_new_section = 0;
+
 #if !INI_USE_STACK
     line = (char*)malloc(INI_INITIAL_ALLOC);
     if (!line) {
@@ -107,9 +110,9 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
 #endif
 
 #if INI_HANDLER_LINENO
-#define HANDLER(u, s, n, v) handler(u, s, n, v, lineno)
+#define HANDLER(u, s, n, v, b) handler(u, s, n, v, b, lineno)
 #else
-#define HANDLER(u, s, n, v) handler(u, s, n, v)
+#define HANDLER(u, s, n, v, b) handler(u, s, n, v, b)
 #endif
 
     /* Scan through stream line by line */
@@ -153,11 +156,15 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
         else if (*prev_name && *start && start > line) {
             /* Non-blank line with leading whitespace, treat as continuation
                of previous name's value (as per Python configparser). */
-            if (!HANDLER(user, section, prev_name, start) && !error)
+            if (!HANDLER(user, section, prev_name, start, is_new_section) && !error)
                 error = lineno;
+
+            /* custom: unset new section flag */
+            is_new_section = 0;
         }
 #endif
         else if (*start == '[') {
+            is_new_section = 1;
             /* A "[section]" line */
             end = find_chars_or_comment(start + 1, "]");
             if (*end == ']') {
@@ -187,8 +194,11 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
 
                 /* Valid name[=:]value pair found, call handler */
                 strncpy0(prev_name, name, sizeof(prev_name));
-                if (!HANDLER(user, section, name, value) && !error)
+                if (!HANDLER(user, section, name, value, is_new_section) && !error)
                     error = lineno;
+
+                /* custom: unset new section flag */
+                is_new_section = 0;
             }
             else if (!error) {
                 /* No '=' or ':' found on name[=:]value line */
