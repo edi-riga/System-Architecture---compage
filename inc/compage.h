@@ -93,6 +93,9 @@
 
 
 compageStatus_t compage_main(int argc, char *argv[]);
+const char* compage_get_name(void *pdata);
+const char* compage_get_sid(void *pdata);
+unsigned    compage_get_id(void *pdata);
 
 
 #endif

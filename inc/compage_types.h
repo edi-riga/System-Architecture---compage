@@ -59,15 +59,17 @@ typedef struct {
 
 typedef struct compage_t {
   struct compage_t   *next;      // we are using forwardly linked list format
+  unsigned            id;        // unique component identificator
+  char               *sid;       // optional component's string id, by default is same as name
   pthread_t           pid;       // process id used for launching/releasing threads
   int                 enabled;   // determines if the component should be launched
   char               *name;      // name / title of the component
-  void               *pdata;     // private data structure to call handle with
   compageId_t        *compageId;    // address of the id struct in the compage_ids segment
   compagePdata_t     *compagePdata; // address of the pdata struct in the compage_pdata segment
   compageStatus_t   (*handlerInit)(void*); // initialization handler
   compageStatus_t   (*handlerLoop)(void*); // (control) loop handler
   compageStatus_t   (*handlerExit)(void*); // component exit handler
+  char                pdata[];   // private data structure to call handle with
 } compage_t;
 
 

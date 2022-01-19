@@ -10,6 +10,7 @@
 
 #include "compage.h"
 #include "compage_hash.h"
+#include "compage_macro.h"
 #include "notification.h"
 
 /* The compage framework depends on the existence of custom segments in the ELF
@@ -413,23 +414,6 @@ static compageStatus_t write_default_config(FILE *fd){
 }
 
 
-static compage_t *llist_entry_alloc(){
-  compage_t *entry;
-
-  if( (entry = (compage_t*)calloc(1, sizeof(compage_t))) == NULL){
-    _SE("Failed allocate memory");
-    return NULL;
-  }
-
-  return entry;
-}
-
-
-static void llist_entry_dealloc(compage_t *entry){
-  free(entry);
-}
-
-
 static void llist_entry_add(compage_t *entry){
   entry->next = llistHead;
   llistHead   = entry;
@@ -446,7 +430,7 @@ static void llist_entry_remove(compage_t *entry){
 }
 
 
-static int config_init_default(compage_t *entry,
+static int config_init_default(compage_t **entry,
   const char *componentName,
   const char *configName)
 {
@@ -465,34 +449,39 @@ static int config_init_default(compage_t *entry,
     return 1;
   }
 
+  /* allocate entry structure with additional space for pdata struct */
+  *entry = (compage_t*)calloc(1, sizeof(compage_t)+pdata->size);
+  if( *entry == NULL ){
+    _SE("Failed allocate memory");
+    return 1;
+  }
+
   /* find component's handlers */
   compageInit_t *init = locate_init_segment(id);
   compageLoop_t *loop = locate_loop_segment(id);
   compageExit_t *exit = locate_exit_segment(id);
   if( !init || !loop || !exit ){
     _E("Failed to locate any of component's handlers");
+    free(*entry);
     return 1;
   }
 
   /* At this point we have all the required data, lets continue with
    * the initialization of the default component's configuration */
-  if( (entry->name = strdup(componentName)) == NULL){
+  if( ((*entry)->name = strdup(componentName)) == NULL){
     _SE("Failed allocate memory");
-    return 1;
-  }
-  if( (entry->pdata = malloc(pdata->size)) == NULL){
-    free(entry->name);
-    _SE("Failed allocate memory");
+    free(*entry);
     return 1;
   }
 
-  memcpy(entry->pdata, pdata->addr, pdata->size);
-  entry->enabled      = 1; // initially component is always enabled
-  entry->compageId    = id;
-  entry->compagePdata = pdata;
-  entry->handlerInit  = init->handler;
-  entry->handlerLoop  = loop->handler;
-  entry->handlerExit  = exit->handler;
+  memcpy((*entry)->pdata, pdata->addr, pdata->size);
+  (*entry)->enabled      = 1; // initially component is always enabled
+  (*entry)->compageId    = id;
+  (*entry)->compagePdata = pdata;
+  (*entry)->handlerInit  = init->handler;
+  (*entry)->handlerLoop  = loop->handler;
+  (*entry)->handlerExit  = exit->handler;
+  (*entry)->sid          = (*entry)->name;
   return 0;
 }
 
@@ -514,8 +503,12 @@ static int config_parse_key_value(compage_t *entry, const char *key, const char 
 
 
 static void llist_entry_deinit(compage_t *entry){
+  if(entry->sid != entry->name){
+    free(entry->sid);
+  }
   free(entry->pdata);
   free(entry->name);
+  free(entry);
 }
 
 
@@ -534,29 +527,52 @@ static compage_t* llist_entry_find_by_name(const char *name){
   return NULL;
 }
 
+static compage_t* llist_entry_find_by_id(unsigned id){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(it->id == id){
+      return it;
+    }
+
+    it = it->next;
+  }
+
+  return NULL;
+}
+
 
 static int ini_parser_handler(void *pdata,
-  const char *section, const char *key, const char *value)
+  const char *section, const char *key, const char *value, int is_new_section)
 {
+  static unsigned entry_id = 0;
+
+  _D("INI Section: %s; Key: %s; Value: %s; New section: %d",
+    section, key, value, is_new_section);
+
+  /* we support multiple segments with the same name, but because segment name
+   * is also component's string-id we need a unique identification mechanism
+   * for all the components. Here we solve this issue by just asigning a unique
+   * number to each component that is incremented with every new section */
+  if(is_new_section){
+    entry_id++;
+  }
 
   /* try to find entry in the forwardly linked list, if entry is nonexistsant
    * allocate new compage_t entry, set section as its ID and add it to the
    * linked list */
-  compage_t *entry = llist_entry_find_by_name(section);
+  compage_t *entry = llist_entry_find_by_id(entry_id);
   if(entry == NULL){
-    if( (entry = llist_entry_alloc()) == NULL){
-      _E("Failed to allocate compage entry");
-      return 0;
-    }
-
-    /* fill the rest of the compage component's data structure */
-    if( config_init_default(entry, section, section) != 0){
+    /* allocate and fill the compage component's data structure */
+    if( config_init_default(&entry, section, section) != 0){
       _E("Failed to initialize compage component");
-      llist_entry_dealloc(entry);
       return 0;
     }
 
-    // add entry to the global llist
+    /* set entrie's unique ID*/
+    entry->id = entry_id;
+
+    /* add entry to the global llist */
     llist_entry_add(entry);
   }
 
@@ -568,6 +584,16 @@ static int ini_parser_handler(void *pdata,
     return 1;
   }
 
+  /* "sid" key represents component's "string-name", which can be used later for
+   * readable component identification and logging */
+  if(strcmp("sid", key) == 0){
+    entry->sid = strdup(value);
+    if(!entry->sid){
+      _SE("Failed allocate memory");
+      return 1;
+    }
+    return 0;
+  }
 
   /* other keys are believed to correspond with default configuration */
   if(config_parse_key_value(entry, key, value) != 0){
@@ -794,4 +820,16 @@ compageStatus_t compage_main(int argc, char *argv[]){
 
   //print_help_message(argv[0]);
   return COMPAGE_SUCCESS;
+}
+
+const char* compage_get_name(void *p){
+  return CONTAINER_OF(compage_t, pdata, p)->name;
+}
+
+const char* compage_get_sid(void *p){
+  return CONTAINER_OF(compage_t, pdata, p)->sid;
+}
+
+unsigned compage_get_id(void *p){
+  return CONTAINER_OF(compage_t, pdata, p)->id;
 }
