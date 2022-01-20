@@ -15,6 +15,39 @@ typedef enum {
   COMPAGE_PARSER_ERROR,
 } compageStatus_t;
 
+typedef enum {
+  COMPAGE_STATE_IDLE,
+  COMPAGE_STATE_PREINIT,
+  COMPAGE_STATE_INIT,
+  COMPAGE_STATE_POSTINIT,
+  COMPAGE_STATE_PRELOOP,
+  COMPAGE_STATE_LOOP,
+  COMPAGE_STATE_POSTLOOP,
+  COMPAGE_STATE_PREEXIT,
+  COMPAGE_STATE_EXIT,
+  COMPAGE_STATE_POSTEXIT,
+  COMPAGE_STATE_COMPLETED_SUCCESS,
+  COMPAGE_STATE_COMPLETED_FAILURE,
+} compageState_t;
+
+typedef enum {
+  COMPAGE_SIDEHANDLER_PREINIT=0,
+  COMPAGE_SIDEHANDLER_POSTINIT,
+  COMPAGE_SIDEHANDLER_PRELOOP,
+  COMPAGE_SIDEHANDLER_POSTLOOP,
+  COMPAGE_SIDEHANDLER_PREEXIT,
+  COMPAGE_SIDEHANDLER_POSTEXIT,
+  COMPAGE_SIDEHANDLER_COUNT
+} compageHandlerType_t;
+
+typedef void (*compageHandler_t)(void*);
+//typedef void (*compageSidehandler_t)(void*, void*);
+
+typedef struct {
+  void  (*callback)(void*,void*);
+  void   *pdata;
+} compageSidehandler_t;
+
 
 #pragma pack(push, 1)
 typedef struct {
@@ -58,18 +91,19 @@ typedef struct {
 
 
 typedef struct compage_t {
-  struct compage_t   *next;      // we are using forwardly linked list format
-  unsigned            id;        // unique component identificator
-  char               *sid;       // optional component's string id, by default is same as name
-  pthread_t           pid;       // process id used for launching/releasing threads
-  int                 enabled;   // determines if the component should be launched
-  char               *name;      // name / title of the component
-  compageId_t        *compageId;    // address of the id struct in the compage_ids segment
-  compagePdata_t     *compagePdata; // address of the pdata struct in the compage_pdata segment
-  compageStatus_t   (*handlerInit)(void*); // initialization handler
-  compageStatus_t   (*handlerLoop)(void*); // (control) loop handler
-  compageStatus_t   (*handlerExit)(void*); // component exit handler
-  char                pdata[];   // private data structure to call handle with
+  struct compage_t  *next;      // we are using forwardly linked list format
+  unsigned           id;        // unique component identificator
+  char              *sid;       // optional component's string id, by default is same as name
+  pthread_t          pid;       // process id used for launching/releasing threads
+  int                enabled;   // determines if the component should be launched
+  char              *name;      // name / title of the component
+  compageId_t       *compageId;    // address of the id struct in the compage_ids segment
+  compagePdata_t    *compagePdata; // address of the pdata struct in the compage_pdata segment
+  compageStatus_t  (*handlerInit)(void*); // initialization handler
+  compageStatus_t  (*handlerLoop)(void*); // (control) loop handler
+  compageStatus_t  (*handlerExit)(void*); // component exit handler
+  compageState_t     state;     // component's execution state
+  char               pdata[];   // private data structure to call handle with
 } compage_t;
 
 

@@ -38,6 +38,8 @@ compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
 static compage_t *llistHead;
 /* We support multiple segments with the same name so we maintain unique ids */
 static unsigned entry_id = 0;
+/* Shared handlers for monitoring the component lifecyles */
+static compageSidehandler_t sidehandlers[COMPAGE_SIDEHANDLER_COUNT];
 
 
 /* When using custom segments, linker creates start/stop labels that further can
@@ -677,7 +679,6 @@ compageStatus_t compage_init_default(){
 }
 
 void compage_deinit(){
-  compage_t *it = llistHead;
   while(llistHead != NULL){
     llist_entry_deinit(llist_entry_remove(&llistHead));
   }
@@ -763,35 +764,103 @@ compageStatus_t compage_generate_config(const char *fpath){
 }
 
 
+//compageStatus_t pthread_handler_routines(
+//  compage_t *entry,  compageHandler_t handler, compageState_t handler_state,
+//  compageSidehandler_t prehandler,i compageSidehandler_t posthandler,
+//  void *prehandler_data, void *posthandler_data,
+//  compageState_t prehandler_state, compageState_t posthandler_state)
+//{
+//  /* preinit handler */
+//  if(prehandler){
+//    entry->state = prehandler_state;
+//    prehandler(prehandler_data, entry->pdata);
+//  }
+//
+//  /* handler */
+//  entry->state = handler_state;
+//  status = entry->handlerInit(entry->pdata);
+//  if(status != COMPAGE_SUCCESS){
+//    entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+//    return (void*)status; // TODO: utilize signaling mechanism for handling
+//  }
+//
+//  /* postinit handler */
+//  if(handler_postinit){
+//    entry->state = COMPAGE_STATE_POSTINIT;
+//    handler_postinit(pdata_handler_postinit, entry->pdata);
+//  }
+//
+//  return COMPAGE_SUCCESS;
+//}
+
+static inline void pthread_handler_callback(compage_t *entry, compageSidehandler_t *sidehandler){
+  if(sidehandler->callback){
+    sidehandler->callback(sidehandler->pdata, entry->pdata);
+  }
+}
+
 void *pthread_handler(compage_t *entry){
   compageStatus_t status;
 
   /* initialization */
   if(entry->handlerInit){
-    /* TODO: pre-execute handler */
+    /* preinit handler */
+    entry->state = COMPAGE_STATE_PREINIT;
+    pthread_handler_callback(entry, &sidehandlers[COMPAGE_SIDEHANDLER_PREINIT]);
+
+    /* handler */
+    entry->state = COMPAGE_STATE_INIT;
     status = entry->handlerInit(entry->pdata);
-    /* TODO: return value */
-    /* TODO: post-handler */
+    if(status != COMPAGE_SUCCESS){
+      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+      return (void*)status; // TODO: utilize signaling mechanism for handling
+    }
+
+    /* postinit handler */
+    entry->state = COMPAGE_STATE_POSTINIT;
+    pthread_handler_callback(entry, &sidehandlers[COMPAGE_SIDEHANDLER_POSTINIT]);
   }
 
 
   /* loop */
   if(entry->handlerLoop){
-    /* TODO: pre-execute handler */
+
+    /* preloop handler */
+    entry->state = COMPAGE_STATE_PRELOOP;
+    pthread_handler_callback(entry, &sidehandlers[COMPAGE_SIDEHANDLER_PRELOOP]);
+
+    /* handler */
     status = entry->handlerLoop(entry->pdata);
-    /* TODO: return value */
-    /* TODO: post-execute handler */
+    if(status != COMPAGE_SUCCESS){
+      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+      return (void*)status; // TODO: utilize signaling mechanism for handling
+    }
+
+    /* postloop handler */
+    entry->state = COMPAGE_STATE_POSTLOOP;
+    pthread_handler_callback(entry, &sidehandlers[COMPAGE_SIDEHANDLER_POSTLOOP]);
   }
 
 
   /* exit */
   if(entry->handlerExit){
-    /* TODO: pre-execute handler */
+    /* preexit handler */
+    entry->state = COMPAGE_STATE_PREEXIT;
+    pthread_handler_callback(entry, &sidehandlers[COMPAGE_SIDEHANDLER_PREEXIT]);
+
+    /* handler */
     status = entry->handlerExit(entry->pdata);
-    /* TODO: return value */
-    /* TODO: post-execute handler */
+    if(status != COMPAGE_SUCCESS){
+      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+      return (void*)status; // TODO: utilize signaling mechanism for handling
+    }
+
+    /* postexit handler */
+    entry->state = COMPAGE_STATE_POSTEXIT;
+    pthread_handler_callback(entry, &sidehandlers[COMPAGE_SIDEHANDLER_POSTEXIT]);
   }
 
+  entry->state = COMPAGE_STATE_COMPLETED_SUCCESS;
   return (void*)0;
 }
 
@@ -880,7 +949,12 @@ compageStatus_t compage_main(int argc, char *argv[]){
 
   _D("Launchig compage components using pthread API");
   compage_launch_pthreads();
-  sleep(1);
+
+  _D("Main thread going to sleep");
+  while(llistHead != NULL){
+    pthread_join(llistHead->pid, NULL); // TODO: use return code
+    llist_entry_deinit(llist_entry_remove(&llistHead));
+  }
 
   //print_help_message(argv[0]);
   return COMPAGE_SUCCESS;
@@ -897,3 +971,25 @@ const char* compage_get_sid(void *p){
 unsigned compage_get_id(void *p){
   return CONTAINER_OF(compage_t, pdata, p)->id;
 }
+
+
+//void compage_register_preinit_handler(void(*handler)(void*, void*), void *pdata){
+//  handler_preinit       = handler;
+//  pdata_handler_preinit = pdata;
+//}
+//
+//void compage_register_preinit_handler(void(*handler)(void*, void*), void *pdata){
+//  handler_preinit       = handler;
+//  pdata_handler_preinit = pdata;
+//}
+//
+//static void (*handler_preloop)(void*, void*);
+//static void (*handler_preexit)(void*, void*);
+//static void (*handler_postinit)(void*, void*);
+//static void (*handler_postloop)(void*, void*);
+//static void (*handler_postexit)(void*, void*);
+//static void *pdata_handler_preloop;
+//static void *pdata_handler_preexit;
+//static void *pdata_handler_postinit;
+//static void *pdata_handler_postloop;
+//static void *pdata_handler_postexit;
