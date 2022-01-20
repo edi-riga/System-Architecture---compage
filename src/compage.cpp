@@ -36,6 +36,9 @@ compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
 
 /* We utilize a linked list structure for the compage components */
 static compage_t *llistHead;
+/* We support multiple segments with the same name so we maintain unique ids */
+static unsigned entry_id = 0;
+
 
 /* When using custom segments, linker creates start/stop labels that further can
  * be used for segment localization and in parser logic */
@@ -261,14 +264,14 @@ static compageId_t* locate_ids_segment(const char *name){
   return NULL;
 }
 
-static compageConfig_t* locate_config_segment(const char *name){
+static compageConfig_t* locate_config_segment(compagePdata_t *pdata, const char *name){
   compageConfig_t *start, *stop;
 
   start = (compageConfig_t*)get_segment_config_start();
   stop  = (compageConfig_t*)get_segment_config_stop();
 
   while(start < stop){
-    if(strcmp(start->name, name) == 0){
+    if( (start->pdata == pdata) && (strcmp(start->name, name) == 0) ){
       return start;
     }
 
@@ -420,13 +423,13 @@ static void llist_entry_add(compage_t *entry){
 }
 
 
-static void llist_entry_remove(compage_t *entry){
-  compage_t **indir = &llistHead;
+// TODO: add indirect implementation
+static compage_t* llist_entry_remove(compage_t **indirect){
+  compage_t *entry;
 
-  while(*indir != entry)
-    indir = &((*indir)->next);
-
-  *indir = entry->next;
+  entry = *indirect;
+  *indirect = entry->next;
+  return entry;
 }
 
 
@@ -488,7 +491,7 @@ static int config_init_default(compage_t **entry,
 static int config_parse_key_value(compage_t *entry, const char *key, const char *value){
   compageConfig_t *config;
 
-  if( (config = locate_config_segment(key)) == NULL){
+  if( (config = locate_config_segment(entry->compagePdata, key)) == NULL){
     _W("Configuration for \"%s\" is not found", key);
     return 0; // TODO: for now don't fail the setup, but should we?
   }
@@ -506,7 +509,6 @@ static void llist_entry_deinit(compage_t *entry){
   if(entry->sid != entry->name){
     free(entry->sid);
   }
-  free(entry->pdata);
   free(entry->name);
   free(entry);
 }
@@ -545,8 +547,6 @@ static compage_t* llist_entry_find_by_id(unsigned id){
 static int ini_parser_handler(void *pdata,
   const char *section, const char *key, const char *value, int is_new_section)
 {
-  static unsigned entry_id = 0;
-
   _D("INI Section: %s; Key: %s; Value: %s; New section: %d",
     section, key, value, is_new_section);
 
@@ -595,7 +595,7 @@ static int ini_parser_handler(void *pdata,
     return 0;
   }
 
-  /* other keys are believed to correspond with default configuration */
+  /* other keys should correspond to default configuration */
   if(config_parse_key_value(entry, key, value) != 0){
     return 0;
   }
@@ -635,11 +635,18 @@ compageStatus_t compage_check_segments(){
 }
 
 
-compageStatus_t compage_print_components(){
+compageStatus_t compage_init_from_file(const char *fpath){
+  if(ini_parse(fpath, ini_parser_handler, NULL) < 0){
+    _E("Failed to load \"%s\" configuration file", fpath);
+    return COMPAGE_PARSER_ERROR;
+  }
+
+  return COMPAGE_SUCCESS;
+}
+
+
+compageStatus_t compage_init_default(){
   compageId_t *ids_start, *ids_stop;
-  compageConfig_t *config_start, *config_stop;
-  compagePdata_t *pdata;
-  char buf[256];
 
   ids_start = (compageId_t*)get_segment_ids_start();
   ids_stop  = (compageId_t*)get_segment_ids_stop();
@@ -651,37 +658,91 @@ compageStatus_t compage_print_components(){
       continue;
     }
 
-    printf("component: " COLOR_YELLOW "%s\n" COLOR_DEFAULT, ids_start->name);
-
-    /* check whether component has a registered private data structure */
-    if( (pdata = locate_pdata_segment(ids_start)) == NULL ){
-      ids_start++;
-      continue;
+    compage_t *entry;
+    if( config_init_default(&entry, ids_start->name, ids_start->name) != 0){
+      _E("Failed to initialize compage component");
+      return COMPAGE_PARSER_ERROR;
     }
 
-    /* iterate through registered configuration */
+    /* set entrie's unique ID*/
+    entry->id = entry_id++;
+
+    /* add entry to the global llist */
+    llist_entry_add(entry);
+
+    ids_start++;
+  }
+
+  return COMPAGE_SUCCESS;
+}
+
+void compage_deinit(){
+  compage_t *it = llistHead;
+  while(llistHead != NULL){
+    llist_entry_deinit(llist_entry_remove(&llistHead));
+  }
+}
+
+
+compageStatus_t compage_print_components(const char *config_file){
+  compageConfig_t *config_start, *config_stop;
+  compageStatus_t status;
+  compage_t *it;
+  char buf[256];
+
+  /* initialize the compage component linked list, use either the supplied
+   * configuration file of initialize list from the default configuration in
+   * the elf compage_* sections */
+  if(config_file){
+    status = compage_init_from_file(config_file);
+  } else {
+    status = compage_init_default();
+  }
+
+  if(status != COMPAGE_SUCCESS){
+    _E("Failed to initialize compage component list");
+    return status;
+  }
+
+  /* iterate through all components in the linked list */
+  it = llistHead;
+  while(it != NULL){
+
+    /* print component's string id, universal id and name */
+    printf("component: " COLOR_YELLOW "%s " COLOR_DEFAULT "(uid=%u, name=%s)\n",
+      it->sid, it->id, it->name);
+
+    /* iterate through all configs and identify the relevant configurations
+     * for this particular component. The config section holds necessary info
+     * regarding the actual layout of the pdata struct (just the configurable
+     * parts) */
     config_start = (compageConfig_t*)get_segment_config_start();
     config_stop  = (compageConfig_t*)get_segment_config_stop();
     while(config_start < config_stop){
 
       /* ignore dummy configuration and check if config corresponds to pdata */
-      if( (config_start->pdata) == NULL || (config_start->pdata != pdata)){
+      if( (config_start->pdata) == NULL || (config_start->pdata != it->compagePdata)){
         config_start++;
         continue;
       }
 
+      /* print the actula parameter */
       printf("  - parameter: " COLOR_GRAY "%s" COLOR_DEFAULT
         " (type: 0x%.4lx; offset: %.3lu; default value: %s)\n",
         config_start->name,
         config_start->type,
         config_start->offset,
         get_config_string_value(buf, sizeof(buf), config_start->type,
-          (void*)(((uint64_t)pdata->addr)+config_start->offset)));
-      config_start++;
+          (void*)(((uint64_t)it->pdata)+config_start->offset)));
+
+        config_start++;
     }
-    ids_start++;
+
+    it = it->next;
   }
 
+  /* deinitialize compage linked list */
+  compage_deinit();
   return COMPAGE_SUCCESS;
 }
 
@@ -701,15 +762,6 @@ compageStatus_t compage_generate_config(const char *fpath){
   return status;
 }
 
-
-compageStatus_t compage_init_from_file(const char *fpath){
-  if(ini_parse(fpath, ini_parser_handler, NULL) < 0){
-    _E("Failed to load \"%s\" configuration file", fpath);
-    return COMPAGE_PARSER_ERROR;
-  }
-
-  return COMPAGE_SUCCESS;
-}
 
 void *pthread_handler(compage_t *entry){
   compageStatus_t status;
@@ -784,17 +836,29 @@ compageStatus_t compage_main(int argc, char *argv[]){
   /* list of options */
   static struct option long_options[] = {
     {"help",      no_argument,       0, 'h'},
-    {"list",      no_argument,       0, 'l'},
+    {"list",      optional_argument, 0, 'l'},
     {"generate",  required_argument, 0, 'g'},
     {0, 0, 0, 0}
   };
 
   _D("Parsing command line arguments");
   int c;
-  while( (c = getopt_long(argc, argv, "hlg:", long_options, NULL)) != -1){
+  while( (c = getopt_long(argc, argv, "hl::g:", long_options, NULL)) != -1){
     switch(c){
       case 'l':  // LIST COMPONENTS
-        return compage_print_components();
+        // in case of '-largument' syntax the optarg will be set
+        if(optarg != NULL){
+          return compage_print_components(optarg);
+        }
+
+        // in case of '-l argument' syntax the next argv value is the argument
+        // (optind is index of the next value to be processed)
+        if(optind < argc && argv[optind][0] != '-'){
+          return compage_print_components(argv[optind]);
+        }
+
+        // in case of '-l' syntax there is no argument
+        return compage_print_components(NULL);
 
       case 'g':  // GENERATE CONFIGURATION FILE
         return compage_generate_config(optarg);
