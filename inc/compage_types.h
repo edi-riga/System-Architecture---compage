@@ -13,10 +13,11 @@ typedef enum {
   COMPAGE_ERROR,
   COMPAGE_SYSTEM_ERROR,
   COMPAGE_PARSER_ERROR,
+  COMPAGE_INVALID_TYPE,
 } compageStatus_t;
 
 typedef enum {
-  COMPAGE_STATE_IDLE,
+  COMPAGE_STATE_IDLE=0,
   COMPAGE_STATE_PREINIT,
   COMPAGE_STATE_INIT,
   COMPAGE_STATE_POSTINIT,
@@ -31,22 +32,22 @@ typedef enum {
 } compageState_t;
 
 typedef enum {
-  COMPAGE_SIDEHANDLER_PREINIT=0,
-  COMPAGE_SIDEHANDLER_POSTINIT,
-  COMPAGE_SIDEHANDLER_PRELOOP,
-  COMPAGE_SIDEHANDLER_POSTLOOP,
-  COMPAGE_SIDEHANDLER_PREEXIT,
-  COMPAGE_SIDEHANDLER_POSTEXIT,
-  COMPAGE_SIDEHANDLER_COUNT
-} compageHandlerType_t;
+  COMPAGE_CALLBACK_PREINIT=0,
+  COMPAGE_CALLBACK_POSTINIT,
+  COMPAGE_CALLBACK_PRELOOP,
+  COMPAGE_CALLBACK_POSTLOOP,
+  COMPAGE_CALLBACK_PREEXIT,
+  COMPAGE_CALLBACK_POSTEXIT,
+  COMPAGE_CALLBACK_COUNT
+} compageCallbackType_t;
 
 typedef void (*compageHandler_t)(void*);
-//typedef void (*compageSidehandler_t)(void*, void*);
+typedef void (*compageCallbackHandler_t)(void*, void*);
 
 typedef struct {
-  void  (*callback)(void*,void*);
-  void   *pdata;
-} compageSidehandler_t;
+  void  (*handler)(void*,void*);
+  void   *arg;
+} compageCallback_t;
 
 
 #pragma pack(push, 1)

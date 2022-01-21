@@ -9,6 +9,11 @@ typedef struct{
 
 pdata_t pdata = {"asd", 1, 2};
 
+void callback(void *arg, pdata_t *pdata){
+  printf("Callback called for \"%s\" in state \"%s\"\n",
+    compage_get_sid(pdata),
+    compage_get_current_state_str(pdata));
+}
 
 compageStatus_t init(pdata_t *p){
   printf("Executing init for id:%u name:\"%s\" sid:\"%s\" with a=%s, b=%u, c=%d\n",
@@ -63,6 +68,12 @@ int main(int argc, char *argv[]){
   printf("CONFIG_B:  %p, %s %lu %lu\n", test1_config_b.pdata, test1_config_b.name, test1_config_b.type, test1_config_b.offset);
   printf("CONFIG_C:  %p, %s %lu %lu\n", test1_config_c.pdata, test1_config_c.name, test1_config_c.type, test1_config_c.offset);
 
+  compage_callback_register(callback, COMPAGE_CALLBACK_PREINIT,  NULL);
+  compage_callback_register(callback, COMPAGE_CALLBACK_POSTINIT, NULL);
+  compage_callback_register(callback, COMPAGE_CALLBACK_PRELOOP,  NULL);
+  compage_callback_register(callback, COMPAGE_CALLBACK_POSTLOOP, NULL);
+  compage_callback_register(callback, COMPAGE_CALLBACK_PREEXIT,  NULL);
+  compage_callback_register(callback, COMPAGE_CALLBACK_POSTEXIT, NULL);
 
   return compage_main(argc, argv);
 }

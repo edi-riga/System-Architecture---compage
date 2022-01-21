@@ -105,5 +105,9 @@ compageConfig_t id##_config_##config __attribute__((section("compage_config"))) 
   (size_t)&((typeof(pdata)*)0)->config                                         \
 };
 
+compageStatus_t _compage_callback_register(
+  compageCallbackHandler_t handler,
+  compageCallbackType_t type,
+  void *arg);
 
 #endif

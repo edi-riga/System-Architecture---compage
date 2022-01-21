@@ -92,10 +92,19 @@
 #define COMPAGE_ADD_CONFIG(id, pdata, ...) _COMPAGE_ADD_CONFIG(id, pdata, __VA_ARGS__)
 
 
+#define compage_callback_register(handler, type, arg)\
+  _compage_callback_register(\
+    (compageCallbackHandler_t)handler,\
+    (compageCallbackType_t)type,\
+    (void*)arg)
+
+
 compageStatus_t compage_main(int argc, char *argv[]);
 const char* compage_get_name(void *pdata);
 const char* compage_get_sid(void *pdata);
 unsigned    compage_get_id(void *pdata);
+compageState_t compage_get_current_state(void *pdata);
+const char* compage_get_current_state_str(void *pdata);
 
 
 #endif
