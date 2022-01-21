@@ -3,6 +3,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <unistd.h> // tmp
 
@@ -780,35 +781,6 @@ compageStatus_t compage_generate_config(const char *fpath){
 }
 
 
-//compageStatus_t pthread_handler_routines(
-//  compage_t *entry,  compageHandler_t handler, compageState_t handler_state,
-//  compageSidehandler_t prehandler,i compageSidehandler_t posthandler,
-//  void *prehandler_data, void *posthandler_data,
-//  compageState_t prehandler_state, compageState_t posthandler_state)
-//{
-//  /* preinit handler */
-//  if(prehandler){
-//    entry->state = prehandler_state;
-//    prehandler(prehandler_data, entry->pdata);
-//  }
-//
-//  /* handler */
-//  entry->state = handler_state;
-//  status = entry->handlerInit(entry->pdata);
-//  if(status != COMPAGE_SUCCESS){
-//    entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
-//    return (void*)status; // TODO: utilize signaling mechanism for handling
-//  }
-//
-//  /* postinit handler */
-//  if(handler_postinit){
-//    entry->state = COMPAGE_STATE_POSTINIT;
-//    handler_postinit(pdata_handler_postinit, entry->pdata);
-//  }
-//
-//  return COMPAGE_SUCCESS;
-//}
-
 static inline void pthread_handler_execute_callback(compage_t *entry,
  compageState_t state, compageCallbackType_t callback_type){
   if(callbacks[callback_type].handler){
@@ -817,8 +789,50 @@ static inline void pthread_handler_execute_callback(compage_t *entry,
   }
 }
 
+void pthread_handler_cleanup(compage_t *entry){
+  _D("Pthread cleanup function called for \"%s\" component", entry->sid);
+
+  /* there is nothing to clean */
+  if(entry->state < COMPAGE_STATE_INIT){
+    return;
+  }
+
+  /* we have been stopped in the middle of initialization stage, generally we
+   cannot run deinitialize handler */
+  if(entry->state == COMPAGE_STATE_INIT){
+    _W("Requested cleanup during \"%s\" initialization, exit handler will not"
+      " be called", entry->sid);
+    return;
+  }
+
+  /* we have been stopped in the middle of initialization stage, generally we
+   cannot run deinitialize handler */
+  if(entry->state == COMPAGE_STATE_EXIT){
+    _W("Requested cleanup during ongoing \"%s\" cleanup, might stay initialized",
+       entry->sid);
+    return;
+  }
+
+  /* check if we are in states where data is still initialized */
+  if((entry->state >= COMPAGE_STATE_POSTINIT)
+  && (entry->state <= COMPAGE_STATE_PREEXIT)){
+    if(entry->handlerExit){
+      entry->handlerExit(entry->pdata);
+    }
+  }
+}
+
 void *pthread_handler(compage_t *entry){
   compageStatus_t status;
+
+  /* setup pthread cancellation */
+  if( pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0){
+    _W("Failed to enable thread cancellation");
+  }
+  if( pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL) != 0){
+    _W("Failed to setup asynchronous cancellation mode");
+  }
+  pthread_cleanup_push( (void (*)(void*))pthread_handler_cleanup, entry);
 
   /* initialization: pre-callback, handler, post-callback */
   if(entry->handlerInit){
@@ -842,6 +856,7 @@ void *pthread_handler(compage_t *entry){
       pthread_handler_execute_callback(entry,
         COMPAGE_STATE_PRELOOP, COMPAGE_CALLBACK_PRELOOP);
 
+      entry->state = COMPAGE_STATE_LOOP;
       status = entry->handlerLoop(entry->pdata);
 
       pthread_handler_execute_callback(entry,
@@ -859,6 +874,7 @@ void *pthread_handler(compage_t *entry){
     pthread_handler_execute_callback(entry,
       COMPAGE_STATE_PREEXIT, COMPAGE_CALLBACK_PREEXIT);
 
+    entry->state = COMPAGE_STATE_EXIT;
     status = entry->handlerExit(entry->pdata);
     if(status != COMPAGE_SUCCESS){
       entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
@@ -868,6 +884,8 @@ void *pthread_handler(compage_t *entry){
     pthread_handler_execute_callback(entry,
       COMPAGE_STATE_POSTEXIT, COMPAGE_CALLBACK_POSTEXIT);
   }
+
+  pthread_cleanup_pop(1);
 
   entry->state = COMPAGE_STATE_COMPLETED_SUCCESS;
   return (void*)0;
@@ -890,6 +908,7 @@ compageStatus_t compage_launch_pthreads(){
 }
 
 void compage_join_pthreads(){
+  _I("Joining pthreads");
   while(llistHead != NULL){
     if(llistHead->enabled){
       pthread_join(llistHead->pid, NULL); // TODO: use return code
@@ -898,6 +917,28 @@ void compage_join_pthreads(){
     llist_entry_deinit(llist_entry_remove(&llistHead));
   }
 }
+
+void compage_cancel_pthreads(){
+  compage_t *it = llistHead;
+
+  _I("Cancelling pthreads");
+  while(it != NULL){
+    if(it->enabled){
+      pthread_cancel(it->pid); // TODO: use return code
+    }
+
+    it = it->next;
+  }
+}
+
+
+void compage_signal_handler(int sig){
+  _I("COMPAGE signal handler called with signal: %d", sig);
+  compage_cancel_pthreads(); // TODO: use return code
+  compage_join_pthreads();   // TODO: use return code
+  exit(0);
+}
+
 
 compageStatus_t compage_main(int argc, char *argv[]){
   compageStatus_t status;
@@ -963,13 +1004,14 @@ compageStatus_t compage_main(int argc, char *argv[]){
           _E("Failed to initialize components using default configuration");
           return status;
         }
-        compage_launch_pthreads();
-        if(status != COMPAGE_SUCCESS){
-          _E("Failed to execute components");
-          return status;
-        }
-        compage_join_pthreads();
-        return COMPAGE_SUCCESS;
+        break;
+        //compage_launch_pthreads();
+        //if(status != COMPAGE_SUCCESS){
+        //  _E("Failed to execute components");
+        //  return status;
+        //}
+        //compage_join_pthreads();
+        //return COMPAGE_SUCCESS;
 
       case 'h':  // HELP
         print_help_message(argv[0]);
@@ -996,6 +1038,10 @@ compageStatus_t compage_main(int argc, char *argv[]){
     _E("Failed to execute components");
     return status;
   }
+
+  _D("Initializing signal handling");
+  signal(SIGINT,  compage_signal_handler);
+  signal(SIGKILL, compage_signal_handler);
 
   _D("Main thread going to sleep");
   compage_join_pthreads();
@@ -1036,4 +1082,8 @@ compageStatus_t _compage_callback_register(
   callbacks[type].handler = handler;
   callbacks[type].arg     = arg;
   return COMPAGE_SUCCESS;
+}
+
+compageStatus_t compage_kill_all(){
+  kill(0, SIGINT);
 }

@@ -154,4 +154,6 @@ compageState_t compage_get_current_state(void *pdata);
 
 const char* compage_get_current_state_str(void *pdata);
 
+compageStatus_t compage_kill_all();
+
 #endif

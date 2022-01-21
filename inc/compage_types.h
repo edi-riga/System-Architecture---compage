@@ -15,6 +15,7 @@ typedef enum {
   COMPAGE_PARSER_ERROR,
   COMPAGE_INVALID_TYPE,
   COMPAGE_EXIT_LOOP,
+  COMPAGE_CANCELLED
 } compageStatus_t;
 
 typedef enum {
