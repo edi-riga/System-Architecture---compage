@@ -156,4 +156,14 @@ const char* compage_get_current_state_str(void *pdata);
 
 compageStatus_t compage_kill_all();
 
+compageStatus_t compage_configure_signaling();
+
+compageStatus_t compage_generate_config(const char *fpath);
+
+compageStatus_t compage_init_from_file(const char *fpath);
+
+compageStatus_t compage_launch_pthreads();
+
+void compage_join_pthreads();
+
 #endif

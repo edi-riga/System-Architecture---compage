@@ -931,7 +931,6 @@ void compage_cancel_pthreads(){
   }
 }
 
-
 void compage_signal_handler(int sig){
   _I("COMPAGE signal handler called with signal: %d", sig);
   compage_cancel_pthreads(); // TODO: use return code
@@ -939,6 +938,19 @@ void compage_signal_handler(int sig){
   exit(0);
 }
 
+compageStatus_t compage_configure_signaling(){
+  if(signal(SIGINT,  compage_signal_handler) == SIG_ERR){
+    _SE("Failed to register signal handler");
+    return COMPAGE_SYSTEM_ERROR;
+  }
+
+  //if(signal(SIGKILL, compage_signal_handler) == SIG_ERR){
+  //  _SE("Failed to register signal handler");
+  //  return COMPAGE_SYSTEM_ERROR;
+  //}
+
+  return COMPAGE_SUCCESS;
+}
 
 compageStatus_t compage_main(int argc, char *argv[]){
   compageStatus_t status;
@@ -1005,13 +1017,6 @@ compageStatus_t compage_main(int argc, char *argv[]){
           return status;
         }
         break;
-        //compage_launch_pthreads();
-        //if(status != COMPAGE_SUCCESS){
-        //  _E("Failed to execute components");
-        //  return status;
-        //}
-        //compage_join_pthreads();
-        //return COMPAGE_SUCCESS;
 
       case 'h':  // HELP
         print_help_message(argv[0]);
@@ -1039,9 +1044,12 @@ compageStatus_t compage_main(int argc, char *argv[]){
     return status;
   }
 
-  _D("Initializing signal handling");
-  signal(SIGINT,  compage_signal_handler);
-  signal(SIGKILL, compage_signal_handler);
+  _D("Configuring signal handling");
+  status = compage_configure_signaling();
+  if(status != COMPAGE_SUCCESS){
+    _E("Failed to configure signal handlers");
+    return status;
+  }
 
   _D("Main thread going to sleep");
   compage_join_pthreads();
