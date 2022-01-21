@@ -147,9 +147,10 @@ static uint32_t get_component_count(){
   return get_segment_ids_size()/sizeof(compageId_t);
 }
 
-static void print_help_message(const char *appName){
+static void print_help_message(const char *appName){  // refactor
   puts("USAGE:");
   printf("   %s -h, --help             - prints this message\n", appName);
+  printf("   %s -d, --default          - run application with default configuration\n", appName);
   printf("   %s -g, --generate <fname> - generate default config file as <fname>\n", appName);
   printf("   %s -l, --list             - list available components\n", appName);
   printf("   %s <fname>                - use <fname> configuration file\n", appName);
@@ -837,17 +838,20 @@ void *pthread_handler(compage_t *entry){
 
   /* loop (control): pre-callback, handler, post-callback */
   if(entry->handlerLoop){
-    pthread_handler_execute_callback(entry,
-      COMPAGE_STATE_PRELOOP, COMPAGE_CALLBACK_PRELOOP);
+    do{
+      pthread_handler_execute_callback(entry,
+        COMPAGE_STATE_PRELOOP, COMPAGE_CALLBACK_PRELOOP);
 
-    status = entry->handlerLoop(entry->pdata);
-    if(status != COMPAGE_SUCCESS){
+      status = entry->handlerLoop(entry->pdata);
+
+      pthread_handler_execute_callback(entry,
+        COMPAGE_STATE_POSTLOOP, COMPAGE_CALLBACK_POSTLOOP);
+    } while(status == COMPAGE_SUCCESS);
+
+    if(status != COMPAGE_EXIT_LOOP){
       entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
       return (void*)status; // TODO: utilize signaling mechanism for handling
     }
-
-    pthread_handler_execute_callback(entry,
-      COMPAGE_STATE_POSTLOOP, COMPAGE_CALLBACK_POSTLOOP);
   }
 
   /* exit: pre-callback, handler, post-callback */
@@ -885,15 +889,30 @@ compageStatus_t compage_launch_pthreads(){
   return COMPAGE_SUCCESS;
 }
 
+void compage_join_pthreads(){
+  while(llistHead != NULL){
+    if(llistHead->enabled){
+      pthread_join(llistHead->pid, NULL); // TODO: use return code
+    }
+
+    llist_entry_deinit(llist_entry_remove(&llistHead));
+  }
+}
 
 compageStatus_t compage_main(int argc, char *argv[]){
   compageStatus_t status;
 
-  printf("ID:     %lu bytes\n", get_segment_ids_size());
-  printf("INIT:   %lu bytes\n", get_segment_init_size());
-  printf("LOOP:   %lu bytes\n", get_segment_loop_size());
-  printf("EXIT:   %lu bytes\n", get_segment_exit_size());
-  printf("CONFIG: %lu bytes\n", get_segment_config_size());
+  _D("ID size:     %lu bytes\n", get_segment_ids_size());
+  _D("INIT size:   %lu bytes\n", get_segment_init_size());
+  _D("LOOP size:   %lu bytes\n", get_segment_loop_size());
+  _D("EXIT size:   %lu bytes\n", get_segment_exit_size());
+  _D("CONFIG size: %lu bytes\n", get_segment_config_size());
+
+  _D("Checking the supplied argument count");
+  if(argc == 1){
+    print_help_message(argv[0]);
+    return COMPAGE_WRONG_ARGS;
+  }
 
   _D("Checking the added component count");
   if(get_component_count() <= 1){ // note, there is 1 dummy component
@@ -910,6 +929,7 @@ compageStatus_t compage_main(int argc, char *argv[]){
   /* list of options */
   static struct option long_options[] = {
     {"help",      no_argument,       0, 'h'},
+    {"default",   no_argument,       0, 'd'},
     {"list",      optional_argument, 0, 'l'},
     {"generate",  required_argument, 0, 'g'},
     {0, 0, 0, 0}
@@ -917,7 +937,7 @@ compageStatus_t compage_main(int argc, char *argv[]){
 
   _D("Parsing command line arguments");
   int c;
-  while( (c = getopt_long(argc, argv, "hl::g:", long_options, NULL)) != -1){
+  while( (c = getopt_long(argc, argv, "hdl::g:", long_options, NULL)) != -1){
     switch(c){
       case 'l':  // LIST COMPONENTS
         // in case of '-largument' syntax the optarg will be set
@@ -937,6 +957,20 @@ compageStatus_t compage_main(int argc, char *argv[]){
       case 'g':  // GENERATE CONFIGURATION FILE
         return compage_generate_config(optarg);
 
+      case 'd':  // LAUNCH APPLICATION USING DEFAULT CONFIG
+        status = compage_init_default();
+        if(status != COMPAGE_SUCCESS){
+          _E("Failed to initialize components using default configuration");
+          return status;
+        }
+        compage_launch_pthreads();
+        if(status != COMPAGE_SUCCESS){
+          _E("Failed to execute components");
+          return status;
+        }
+        compage_join_pthreads();
+        return COMPAGE_SUCCESS;
+
       case 'h':  // HELP
         print_help_message(argv[0]);
         return COMPAGE_SUCCESS;
@@ -949,25 +983,25 @@ compageStatus_t compage_main(int argc, char *argv[]){
 
   _D("Checking (last) configuration file argument");
   if(optind < argc){
-    compage_init_from_file(argv[optind]); // TODO: error checking
+    status = compage_init_from_file(argv[optind]);
+    if(status != COMPAGE_SUCCESS){
+      _E("Failed to initialize components from file: \"%s\"", argv[optind]);
+      return status;
+    }
   }
 
   _D("Launchig compage components using pthread API");
-  compage_launch_pthreads();
-  // TODO: use return code
-
-  _D("Main thread going to sleep");
-  while(llistHead != NULL){
-    if(llistHead->enabled){
-      pthread_join(llistHead->pid, NULL); // TODO: use return code
-    }
-
-    llist_entry_deinit(llist_entry_remove(&llistHead));
+  status = compage_launch_pthreads();
+  if(status != COMPAGE_SUCCESS){
+    _E("Failed to execute components");
+    return status;
   }
 
-  //print_help_message(argv[0]);
+  _D("Main thread going to sleep");
+  compage_join_pthreads();
   return COMPAGE_SUCCESS;
 }
+
 
 const char* compage_get_name(void *p){
   return CONTAINER_OF(compage_t, pdata, p)->name;
