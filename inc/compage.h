@@ -92,12 +92,47 @@
 #define COMPAGE_ADD_CONFIG(id, pdata, ...) _COMPAGE_ADD_CONFIG(id, pdata, __VA_ARGS__)
 
 
+/** @def compage_callback_register(handler, type, arg)
+ *
+ * @brief Register callback function associated with one of the component
+ *        execution phases: preinit, postinit, preloop, postloop, preexit,
+ *        postexit.
+ *
+ * @param handler Address of the to-be-called function during the component
+ *        execution phases. The callback has the following prototype:
+ *        void handler(void *pdata_cb, void *pdata_component); the pdata_cb
+ *        is the callback's set private data (argument parameter) and
+ *        pdata_component is the componet's private data.
+ * @param type Type of the callback to be registered, according to the
+ *        compageCallbackType_t type.
+ * @param argument Private data of the callback function, which can be used
+ *        to transfer information from one callback to another, logging,
+ *        execution time measurements, etc.
+ **/
 #define compage_callback_register(handler, type, arg)\
   _compage_callback_register(\
     (compageCallbackHandler_t)handler,\
     (compageCallbackType_t)type,\
     (void*)arg)
 
+
+/** @def compage_callback_register_all(handler, type, arg)
+ *
+ * @brief Register (associate) sinle callback function to all of the component
+ *        execution phases: preinit, postinit, preloop, postloop, preexit,
+ *        postexit.
+ *
+ * @param handler Address of the to-be-called function during the component
+ *        execution phases. The callback has the following prototype:
+ *        void handler(void *pdata_cb, void *pdata_component); the pdata_cb
+ *        is the callback's set private data (argument parameter) and
+ *        pdata_component is the componet's private data.
+ * @param type Type of the callback to be registered, according to the
+ *        compageCallbackType_t type.
+ * @param argument Private data of the callback function, which can be used
+ *        to transfer information between the stages, logging, execution time
+ *        measurements, etc.
+ **/
 #define compage_callback_register_all(handler, arg)\
   compage_callback_register(handler, COMPAGE_CALLBACK_PREINIT,  arg);\
   compage_callback_register(handler, COMPAGE_CALLBACK_POSTINIT, arg);\
@@ -106,12 +141,17 @@
   compage_callback_register(handler, COMPAGE_CALLBACK_PREEXIT,  arg);\
   compage_callback_register(handler, COMPAGE_CALLBACK_POSTEXIT, arg);
 
-compageStatus_t compage_main(int argc, char *argv[]);
-const char* compage_get_name(void *pdata);
-const char* compage_get_sid(void *pdata);
-unsigned    compage_get_id(void *pdata);
-compageState_t compage_get_current_state(void *pdata);
-const char* compage_get_current_state_str(void *pdata);
 
+compageStatus_t compage_main(int argc, char *argv[]);
+
+const char* compage_get_name(void *pdata);
+
+const char* compage_get_sid(void *pdata);
+
+unsigned    compage_get_id(void *pdata);
+
+compageState_t compage_get_current_state(void *pdata);
+
+const char* compage_get_current_state_str(void *pdata);
 
 #endif
