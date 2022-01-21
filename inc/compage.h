@@ -98,6 +98,13 @@
     (compageCallbackType_t)type,\
     (void*)arg)
 
+#define compage_callback_register_all(handler, arg)\
+  compage_callback_register(handler, COMPAGE_CALLBACK_PREINIT,  arg);\
+  compage_callback_register(handler, COMPAGE_CALLBACK_POSTINIT, arg);\
+  compage_callback_register(handler, COMPAGE_CALLBACK_PRELOOP,  arg);\
+  compage_callback_register(handler, COMPAGE_CALLBACK_POSTLOOP, arg);\
+  compage_callback_register(handler, COMPAGE_CALLBACK_PREEXIT,  arg);\
+  compage_callback_register(handler, COMPAGE_CALLBACK_POSTEXIT, arg);
 
 compageStatus_t compage_main(int argc, char *argv[]);
 const char* compage_get_name(void *pdata);
