@@ -25,16 +25,16 @@ LIB:=-lpthread
 
 .POSIX:
 
-all: $(OUT) done
-#all: $(OUT) compile_tests done
+#all: $(OUT) done
+all: $(OUT) compile_examples done
 
 done:
 	@echo
 	@echo "Librares: $(OUT)"
-	@echo "Tests:    tests"
+	@echo "Examples: examples"
 
-compile_tests:
-	@make -C tests
+compile_examples:
+	@make -C examples
 
 $(DIR):
 	mkdir -p $@
@@ -56,4 +56,4 @@ obj/ini/%.o: lib/ini/%.c
 
 clean:
 	rm -fr $(DIR)
-	@make clean -C tests
+	@make clean -C examples

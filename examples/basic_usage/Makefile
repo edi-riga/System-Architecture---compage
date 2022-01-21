@@ -6,8 +6,8 @@ CFLAGS+=-Wall -O2 -fno-toplevel-reorder -g
 LFLAGS?=
 
 OUT:=out/main.elf
-INC:=-Iinc -I../inc
-LIB:=-L../out -l:libcompage.a -lpthread 
+INC:=-Iinc -I../../inc
+LIB:=-L../../out -l:libcompage.a -lpthread 
 
 SRC:=$(shell find src -name "*.c" -o -name "*.cpp")
 OBJ:=$(SRC:src/%=obj/%.o)
@@ -20,7 +20,7 @@ all: $(DIR) $(OUT)
 $(DIR):
 	mkdir -p $@
 
-$(OUT): ../out/libcompage.a $(OBJ)
+$(OUT): ../../out/libcompage.a $(OBJ)
 	$(CROSS_COMPILE)$(CXX) $(LFLAGS) $(OBJ) -o $(OUT) $(LIB)
 
 obj/%.c.o: src/%.c
@@ -29,14 +29,14 @@ obj/%.c.o: src/%.c
 obj/%.cpp.o: src/%.cpp
 	$(CROSS_COMPILE)$(CXX) $(CFLAGS) $(INC) -MMD -MP -MF $(patsubst obj/%.o,dep/%.d,$@) -c -o $@ $<
 
-../out/libcompage.a:
-	make -C ../
+library:
+	make -C ../../
 
 clean:
 	rm -fr $(DIR) tags
 
 distclean: clean
-	make -C ../ clean
+	make -C ../../ clean
 
 ctags:
 	ctags --language-force=c -R -o tags .
