@@ -41,7 +41,7 @@ compageStatus_t texit(pdata_t *p){
 void callback(void *arg, pdata_t *pdata){
   printf("Callback called for \"%s\" in state \"%s\"\n",
     compage_get_sid(pdata),
-    compage_get_current_state_str(pdata));
+    compage_get_state_str(compage_get_state(pdata)));
 }
 
 

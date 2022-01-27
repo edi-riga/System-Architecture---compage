@@ -14,26 +14,19 @@ pdata_t pdata = {"String option", 0};
 
 /* component's handlers: init (constructor), loop and exit (destructor) */
 compageStatus_t init(pdata_t *p){
-  printf("Executing init for id:%u name:\"%s\" sid:\"%s\" with string=%s, counter=%u\n",
-  compage_get_id(p), compage_get_name(p), compage_get_sid(p), p->string, p->counter);
+  printf("%s: Executing init for component, waiting\n", compage_get_name(p));
+  sleep(3); // Simulating cumbersome initialization
   return COMPAGE_SUCCESS;
 }
 
 compageStatus_t loop(pdata_t *p){
-  printf("Executing loop for id:%u name:\"%s\" sid:\"%s\" with string=%s, counter=%u\n",
-  compage_get_id(p), compage_get_name(p), compage_get_sid(p), p->string, p->counter);
-
-  if(p->counter++ < 5){
-    sleep(1);
-    return COMPAGE_SUCCESS;
-  }
-
-  return COMPAGE_EXIT_LOOP;
+  printf("%s: Executing loop (%d)\n", compage_get_name(p), p->counter++);
+  sleep(1); // minor delay to simulate control loop
+  return COMPAGE_SUCCESS;
 }
 
 compageStatus_t texit(pdata_t *p){
-  printf("Executing exit for id:%u name:\"%s\" sid:\"%s\" with string=%s, counter=%u\n",
-  compage_get_id(p), compage_get_name(p), compage_get_sid(p), p->string, p->counter);
+  printf("%s: Executing exit\n", compage_get_name(p));
   return COMPAGE_SUCCESS;
 }
 
@@ -60,8 +53,15 @@ COMPAGE_REGISTER_PDATA(test1, pdata);
 COMPAGE_REGISTER_INIT(test1, init);
 COMPAGE_REGISTER_LOOP(test1, loop);
 COMPAGE_REGISTER_EXIT(test1, texit);
-COMPAGE_ADD_CONFIG(test1, pdata, string);
-COMPAGE_ADD_CONFIG(test1, pdata, counter);
+COMPAGE_ADD_CONFIG(test1, pdata, string, counter);
+
+/* "test2" component registration example (may be in a separate file) */
+COMPAGE_REGISTER_ID(test2);
+COMPAGE_REGISTER_PDATA(test2, pdata);
+COMPAGE_REGISTER_INIT(test2, init);
+COMPAGE_REGISTER_LOOP(test2, loop);
+COMPAGE_REGISTER_EXIT(test2, texit);
+COMPAGE_ADD_CONFIG(test2, pdata, string, counter);
 
 
 void print_usage(const char *fname){
@@ -69,6 +69,7 @@ void print_usage(const char *fname){
   printf("  %s generate <fname>:\n", fname);
   printf("  %s <fname>:\n", fname);
 }
+
 
 int main(int argc, char *argv[]){
 
@@ -92,23 +93,50 @@ int main(int argc, char *argv[]){
     return 0;
   }
 
+  if(compage_configure_signaling() != COMPAGE_SUCCESS){
+    printf("Failed to configure signal handlers\n");
+    return 1;
+  }
+
   /* use supplied configuration file */
   if(compage_init_from_file(argv[1]) != COMPAGE_SUCCESS){
     printf("Faild to parse configuration file\n");
     return 1;
   }
 
-  if(compage_launch_pthreads() != COMPAGE_SUCCESS){
-    printf("Faild to launch compage components\n");
+  /* launch components */
+  printf("Launching \"test0\" component!\n");
+  if(compage_launch_by_name("test0") != COMPAGE_SUCCESS){
+    printf("Failed to launch test0 component\n");
     return 1;
   }
-
-  if(compage_configure_signaling() != COMPAGE_SUCCESS){
-    printf("Failed to configure signal handlers\n");
-    return 1;
+  while(compage_get_state_by_name("test0") < COMPAGE_STATE_POSTINIT){
+    sleep(1);
   }
 
-  printf("Main thread going to sleep\n");
+  printf("Launching \"test1\" component!\n");
+  if(compage_launch_by_name("test1") != COMPAGE_SUCCESS){
+    printf("Failed to launch test1 component\n");
+    return 1;
+  }
+  while(compage_get_state_by_name("test1") < COMPAGE_STATE_POSTINIT){
+    sleep(1);
+  }
+
+  printf("Launching \"test2\" component!\n");
+  if(compage_launch_by_name("test2") != COMPAGE_SUCCESS){
+    printf("Failed to launch test2 component\n");
+    return 1;
+  }
+  while(compage_get_state_by_name("test2") < COMPAGE_STATE_POSTINIT){
+    sleep(1);
+  }
+
+  /* give some time for test2 component to execute */
+  sleep(3);
+
+  printf("Disabling all the components\n");
+  compage_kill_all();
   compage_join_pthreads();
   return 0;
 }
