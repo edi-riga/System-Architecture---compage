@@ -209,6 +209,13 @@ compageStatus_t compage_launch_by_id(unsigned id);
 /** TODO: Documentation **/
 compageStatus_t compage_kill_all();
 /** TODO: Documentation **/
+compageStatus_t compage_kill_by_name(const char *name);
+/** TODO: Documentation **/
+compageStatus_t compage_kill_by_sid(const char *sid);
+/** TODO: Documentation **/
+compageStatus_t compage_kill_by_id(unsigned id);
+
+/** TODO: Documentation **/
 compageStatus_t compage_init_from_file(const char *fpath);
 /** TODO: Documentation **/
 void compage_join_pthreads();

@@ -11,6 +11,7 @@
 #include "compage.h"
 #include "compage_hash.h"
 #include "compage_macro.h"
+#include "compage_llist.h"
 #include "compage_config.h"
 #include "notification.h"
 
@@ -328,22 +329,6 @@ static compageStatus_t write_default_config(FILE *fd){
 }
 
 
-static void llist_entry_add(compage_t *entry){
-  entry->next = llistHead;
-  llistHead   = entry;
-}
-
-
-// TODO: add indirect implementation
-static compage_t* llist_entry_remove(compage_t **indirect){
-  compage_t *entry;
-
-  entry = *indirect;
-  *indirect = entry->next;
-  return entry;
-}
-
-
 static int config_init_default(compage_t **entry,
   const char *componentName,
   const char *configName)
@@ -425,51 +410,6 @@ static void llist_entry_deinit(compage_t *entry){
 }
 
 
-static compage_t* llist_entry_find_by_name(const char *name){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(strcmp(it->name, name) == 0){
-      return it;
-    }
-
-    it = it->next;
-  }
-
-  return NULL;
-}
-
-
-static compage_t* llist_entry_find_by_sid(const char *sid){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(strcmp(it->sid, sid) == 0){
-      return it;
-    }
-
-    it = it->next;
-  }
-
-  return NULL;
-}
-
-
-static compage_t* llist_entry_find_by_id(unsigned id){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(it->id == id){
-      return it;
-    }
-
-    it = it->next;
-  }
-
-  return NULL;
-}
-
-
 static int ini_parser_handler(void *pdata,
   const char *section, const char *key, const char *value, int is_new_section)
 {
@@ -487,7 +427,7 @@ static int ini_parser_handler(void *pdata,
   /* try to find entry in the forwardly linked list, if entry is nonexistsant
    * allocate new compage_t entry, set section as its ID and add it to the
    * linked list */
-  compage_t *entry = llist_entry_find_by_id(entry_id);
+  compage_t *entry = llist_entry_find_by_id(llistHead, entry_id);
   if(entry == NULL){
     /* allocate and fill the compage component's data structure */
     if( config_init_default(&entry, section, section) != 0){
@@ -499,7 +439,7 @@ static int ini_parser_handler(void *pdata,
     entry->id = entry_id;
 
     /* add entry to the global llist */
-    llist_entry_add(entry);
+    llist_entry_add(&llistHead, entry);
   }
 
 
@@ -530,12 +470,7 @@ static int ini_parser_handler(void *pdata,
 }
 
 
-/* ============================================================================ */
-/* PUBLIC API */
-/* ============================================================================ */
-
-
-compageStatus_t compage_check_segments(){
+static compageStatus_t compage_check_segments(){
   compageId_t *id_start;
   id_start = (compageId_t*)get_segment_ids_start();
 
@@ -554,13 +489,127 @@ compageStatus_t compage_check_segments(){
     }
   }}
 
-
   // TODO: Other checks
-
   return COMPAGE_SUCCESS;
 }
 
+/* ============================================================================ */
+/* PTHREAD HANDLERS */
+/* ============================================================================ */
+static inline void pthread_handler_execute_callback(compage_t *entry,
+ compageState_t state, compageCallbackType_t callback_type){
+  if(callbacks[callback_type].handler){
+    entry->state = state;
+    callbacks[callback_type].handler(callbacks[callback_type].arg, entry->pdata);
+  }
+}
 
+static void pthread_handler_cleanup(compage_t *entry){
+  _D("Pthread cleanup function called for \"%s\" component", entry->sid);
+
+  /* there is nothing to clean */
+  if(entry->state < COMPAGE_STATE_INIT){
+    return;
+  }
+
+  /* we have been stopped in the middle of initialization stage, generally we
+   cannot run deinitialize handler */
+  if(entry->state == COMPAGE_STATE_INIT){
+    _W("Requested cleanup during \"%s\" initialization, exit handler will not"
+      " be called", entry->sid);
+    return;
+  }
+
+  /* we have been stopped in the middle of initialization stage, generally we
+   cannot run deinitialize handler */
+  if(entry->state == COMPAGE_STATE_EXIT){
+    _W("Requested cleanup during ongoing \"%s\" cleanup, might stay initialized",
+       entry->sid);
+    return;
+  }
+
+  /* check if we are in states where data is still initialized */
+  if((entry->state >= COMPAGE_STATE_POSTINIT)
+  && (entry->state <= COMPAGE_STATE_PREEXIT)){
+    if(entry->handlerExit){
+      entry->handlerExit(entry->pdata);
+    }
+  }
+}
+
+static void *pthread_handler(compage_t *entry){
+  compageStatus_t status;
+
+  /* setup pthread cancellation */
+  if( pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0){
+    _W("Failed to enable thread cancellation");
+  }
+  if( pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL) != 0){
+    _W("Failed to setup asynchronous cancellation mode");
+  }
+  pthread_cleanup_push( (void (*)(void*))pthread_handler_cleanup, entry);
+
+  /* initialization: pre-callback, handler, post-callback */
+  if(entry->handlerInit){
+    pthread_handler_execute_callback(entry,
+      COMPAGE_STATE_PREINIT, COMPAGE_CALLBACK_PREINIT);
+
+    entry->state = COMPAGE_STATE_INIT;
+    status = entry->handlerInit(entry->pdata);
+    if(status != COMPAGE_SUCCESS){
+      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+      return (void*)status; // TODO: utilize signaling mechanism for handling
+    }
+
+    pthread_handler_execute_callback(entry,
+      COMPAGE_STATE_POSTINIT, COMPAGE_CALLBACK_POSTINIT);
+  }
+
+  /* loop (control): pre-callback, handler, post-callback */
+  if(entry->handlerLoop){
+    do{
+      pthread_handler_execute_callback(entry,
+        COMPAGE_STATE_PRELOOP, COMPAGE_CALLBACK_PRELOOP);
+
+      entry->state = COMPAGE_STATE_LOOP;
+      status = entry->handlerLoop(entry->pdata);
+
+      pthread_handler_execute_callback(entry,
+        COMPAGE_STATE_POSTLOOP, COMPAGE_CALLBACK_POSTLOOP);
+    } while(status == COMPAGE_SUCCESS);
+
+    if(status != COMPAGE_EXIT_LOOP){
+      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+      return (void*)status; // TODO: utilize signaling mechanism for handling
+    }
+  }
+
+  /* exit: pre-callback, handler, post-callback */
+  if(entry->handlerExit){
+    pthread_handler_execute_callback(entry,
+      COMPAGE_STATE_PREEXIT, COMPAGE_CALLBACK_PREEXIT);
+
+    entry->state = COMPAGE_STATE_EXIT;
+    status = entry->handlerExit(entry->pdata);
+    if(status != COMPAGE_SUCCESS){
+      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
+      return (void*)status; // TODO: utilize signaling mechanism for handling
+    }
+
+    pthread_handler_execute_callback(entry,
+      COMPAGE_STATE_POSTEXIT, COMPAGE_CALLBACK_POSTEXIT);
+  }
+
+  pthread_cleanup_pop(1); // here we actually don't require a handler pop
+
+  entry->state = COMPAGE_STATE_COMPLETED_SUCCESS;
+  return (void*)0;
+}
+
+
+/* ============================================================================ */
+/* PUBLIC API */
+/* ============================================================================ */
 compageStatus_t compage_init_from_file(const char *fpath){
   if(ini_parse(fpath, ini_parser_handler, NULL) < 0){
     _E("Failed to load \"%s\" configuration file", fpath);
@@ -569,7 +618,6 @@ compageStatus_t compage_init_from_file(const char *fpath){
 
   return COMPAGE_SUCCESS;
 }
-
 
 compageStatus_t compage_init_default(){
   compageId_t *ids_start, *ids_stop;
@@ -594,7 +642,7 @@ compageStatus_t compage_init_default(){
     entry->id = entry_id++;
 
     /* add entry to the global llist */
-    llist_entry_add(entry);
+    llist_entry_add(&llistHead, entry);
 
     ids_start++;
   }
@@ -688,115 +736,6 @@ compageStatus_t compage_generate_config(const char *fpath){
 }
 
 
-static inline void pthread_handler_execute_callback(compage_t *entry,
- compageState_t state, compageCallbackType_t callback_type){
-  if(callbacks[callback_type].handler){
-    entry->state = state;
-    callbacks[callback_type].handler(callbacks[callback_type].arg, entry->pdata);
-  }
-}
-
-void pthread_handler_cleanup(compage_t *entry){
-  _D("Pthread cleanup function called for \"%s\" component", entry->sid);
-
-  /* there is nothing to clean */
-  if(entry->state < COMPAGE_STATE_INIT){
-    return;
-  }
-
-  /* we have been stopped in the middle of initialization stage, generally we
-   cannot run deinitialize handler */
-  if(entry->state == COMPAGE_STATE_INIT){
-    _W("Requested cleanup during \"%s\" initialization, exit handler will not"
-      " be called", entry->sid);
-    return;
-  }
-
-  /* we have been stopped in the middle of initialization stage, generally we
-   cannot run deinitialize handler */
-  if(entry->state == COMPAGE_STATE_EXIT){
-    _W("Requested cleanup during ongoing \"%s\" cleanup, might stay initialized",
-       entry->sid);
-    return;
-  }
-
-  /* check if we are in states where data is still initialized */
-  if((entry->state >= COMPAGE_STATE_POSTINIT)
-  && (entry->state <= COMPAGE_STATE_PREEXIT)){
-    if(entry->handlerExit){
-      entry->handlerExit(entry->pdata);
-    }
-  }
-}
-
-void *pthread_handler(compage_t *entry){
-  compageStatus_t status;
-
-  /* setup pthread cancellation */
-  if( pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0){
-    _W("Failed to enable thread cancellation");
-  }
-  if( pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL) != 0){
-    _W("Failed to setup asynchronous cancellation mode");
-  }
-  pthread_cleanup_push( (void (*)(void*))pthread_handler_cleanup, entry);
-
-  /* initialization: pre-callback, handler, post-callback */
-  if(entry->handlerInit){
-    pthread_handler_execute_callback(entry,
-      COMPAGE_STATE_PREINIT, COMPAGE_CALLBACK_PREINIT);
-
-    entry->state = COMPAGE_STATE_INIT;
-    status = entry->handlerInit(entry->pdata);
-    if(status != COMPAGE_SUCCESS){
-      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
-      return (void*)status; // TODO: utilize signaling mechanism for handling
-    }
-
-    pthread_handler_execute_callback(entry,
-      COMPAGE_STATE_POSTINIT, COMPAGE_CALLBACK_POSTINIT);
-  }
-
-  /* loop (control): pre-callback, handler, post-callback */
-  if(entry->handlerLoop){
-    do{
-      pthread_handler_execute_callback(entry,
-        COMPAGE_STATE_PRELOOP, COMPAGE_CALLBACK_PRELOOP);
-
-      entry->state = COMPAGE_STATE_LOOP;
-      status = entry->handlerLoop(entry->pdata);
-
-      pthread_handler_execute_callback(entry,
-        COMPAGE_STATE_POSTLOOP, COMPAGE_CALLBACK_POSTLOOP);
-    } while(status == COMPAGE_SUCCESS);
-
-    if(status != COMPAGE_EXIT_LOOP){
-      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
-      return (void*)status; // TODO: utilize signaling mechanism for handling
-    }
-  }
-
-  /* exit: pre-callback, handler, post-callback */
-  if(entry->handlerExit){
-    pthread_handler_execute_callback(entry,
-      COMPAGE_STATE_PREEXIT, COMPAGE_CALLBACK_PREEXIT);
-
-    entry->state = COMPAGE_STATE_EXIT;
-    status = entry->handlerExit(entry->pdata);
-    if(status != COMPAGE_SUCCESS){
-      entry->state = COMPAGE_STATE_COMPLETED_FAILURE;
-      return (void*)status; // TODO: utilize signaling mechanism for handling
-    }
-
-    pthread_handler_execute_callback(entry,
-      COMPAGE_STATE_POSTEXIT, COMPAGE_CALLBACK_POSTEXIT);
-  }
-
-  pthread_cleanup_pop(1); // here we actually don't require a handler pop
-
-  entry->state = COMPAGE_STATE_COMPLETED_SUCCESS;
-  return (void*)0;
-}
 
 compageStatus_t compage_launch(){
   compage_t *it = llistHead;
@@ -817,7 +756,7 @@ compageStatus_t compage_launch(){
 }
 
 compageStatus_t compage_launch_by_name(const char *name){
-  compage_t *entry = llist_entry_find_by_name(name);
+  compage_t *entry = llist_entry_find_by_name(llistHead, name);
   if(entry == NULL){
     return COMPAGE_PARSER_ERROR;
   }
@@ -832,7 +771,7 @@ compageStatus_t compage_launch_by_name(const char *name){
 }
 
 compageStatus_t compage_launch_by_sid(const char *sid){
-  compage_t *entry = llist_entry_find_by_sid(sid);
+  compage_t *entry = llist_entry_find_by_sid(llistHead, sid);
   if(entry == NULL){
     return COMPAGE_PARSER_ERROR;
   }
@@ -847,7 +786,7 @@ compageStatus_t compage_launch_by_sid(const char *sid){
 }
 
 compageStatus_t compage_launch_by_id(unsigned id){
-  compage_t *entry = llist_entry_find_by_id(id);
+  compage_t *entry = llist_entry_find_by_id(llistHead, id);
   if(entry == NULL){
     return COMPAGE_PARSER_ERROR;
   }
@@ -1011,6 +950,51 @@ compageStatus_t compage_main(int argc, char *argv[]){
 }
 
 
+/* -------------------------------------------------------------------------- */
+/* Component destruction */
+/* -------------------------------------------------------------------------- */
+compageStatus_t compage_kill_all(){
+  if(kill(0, SIGINT) != 0){
+    _SE("Failed to signal components");
+    return COMPAGE_SYSTEM_ERROR;
+  }
+
+  return COMPAGE_SUCCESS;
+}
+
+static inline compageStatus_t compage_kill_common(compage_t *entry){
+  if(entry == NULL){
+    return COMPAGE_PARSER_ERROR;
+  }
+
+  if(entry->enabled && entry->launched){
+    pthread_cancel(entry->pid);     // TODO: error checking
+    pthread_join(entry->pid, NULL); // TODO: what if we don't join
+    entry->launched = 0;
+    return COMPAGE_SUCCESS;
+  }
+
+  return COMPAGE_ERROR;
+}
+
+compageStatus_t compage_kill_by_name(const char *name){
+  compage_t *entry = llist_entry_find_by_name(llistHead, name);
+  return compage_kill_common(entry);
+}
+
+compageStatus_t compage_kill_by_sid(const char *sid){
+  compage_t *entry = llist_entry_find_by_sid(llistHead, sid);
+  return compage_kill_common(entry);
+}
+
+compageStatus_t compage_kill_by_id(unsigned id){
+  compage_t *entry = llist_entry_find_by_id(llistHead, id);
+  return compage_kill_common(entry);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Component getters */
+/* -------------------------------------------------------------------------- */
 const char* compage_get_name(void *p){
   return CONTAINER_OF(compage_t, pdata, p)->name;
 }
@@ -1027,8 +1011,9 @@ compageState_t compage_get_state(void *p){
   return CONTAINER_OF(compage_t, pdata, p)->state;
 }
 
+
 compageState_t compage_get_state_by_name(const char *name){
-  compage_t *entry = llist_entry_find_by_name(name);
+  compage_t *entry = llist_entry_find_by_name(llistHead, name);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1037,7 +1022,7 @@ compageState_t compage_get_state_by_name(const char *name){
 }
 
 compageState_t compage_get_state_by_sid(const char *sid){
-  compage_t *entry = llist_entry_find_by_sid(sid);
+  compage_t *entry = llist_entry_find_by_sid(llistHead, sid);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1046,7 +1031,7 @@ compageState_t compage_get_state_by_sid(const char *sid){
 }
 
 compageState_t compage_get_state_by_id(unsigned id){
-  compage_t *entry = llist_entry_find_by_id(id);
+  compage_t *entry = llist_entry_find_by_id(llistHead, id);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1054,13 +1039,18 @@ compageState_t compage_get_state_by_id(unsigned id){
   return entry->state;
 }
 
-
 const char* compage_get_state_str(compageState_t state){
-  // TODO: check
+  if(state > COMPAGE_STATE_ILLEGAL){
+    state = COMPAGE_STATE_ILLEGAL;
+  }
+
   return state_representations[state];
 }
 
 
+/* -------------------------------------------------------------------------- */
+/* Other */
+/* -------------------------------------------------------------------------- */
 compageStatus_t _compage_callback_register(
   compageCallbackHandler_t handler,
   compageCallbackType_t type,
@@ -1072,14 +1062,5 @@ compageStatus_t _compage_callback_register(
 
   callbacks[type].handler = handler;
   callbacks[type].arg     = arg;
-  return COMPAGE_SUCCESS;
-}
-
-compageStatus_t compage_kill_all(){
-  if(kill(0, SIGINT) != 0){
-    _SE("Failed to signal components");
-    return COMPAGE_SYSTEM_ERROR;
-  }
-
   return COMPAGE_SUCCESS;
 }
