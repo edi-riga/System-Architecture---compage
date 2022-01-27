@@ -145,14 +145,14 @@
 compageStatus_t compage_main(int argc, char *argv[]);
 
 const char* compage_get_name(void *pdata);
-
 const char* compage_get_sid(void *pdata);
-
 unsigned    compage_get_id(void *pdata);
 
-compageState_t compage_get_current_state(void *pdata);
-
-const char* compage_get_current_state_str(void *pdata);
+compageState_t compage_get_state(void *pdata);
+compageState_t compage_get_state_by_name(const char *name);
+compageState_t compage_get_state_by_sid(const char *sid);
+compageState_t compage_get_state_by_id(unsigned id);
+const char* compage_get_state_str(compageState_t state);
 
 compageStatus_t compage_kill_all();
 
@@ -163,6 +163,12 @@ compageStatus_t compage_generate_config(const char *fpath);
 compageStatus_t compage_init_from_file(const char *fpath);
 
 compageStatus_t compage_launch_pthreads();
+
+compageStatus_t compage_launch_by_name(const char *name);
+
+//compageStatus_t compage_launch_by_sid(const char *sid);
+
+//compageStatus_t compage_launch_by_id(unsigned id);
 
 void compage_join_pthreads();
 

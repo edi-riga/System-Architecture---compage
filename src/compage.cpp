@@ -55,6 +55,7 @@ static const char *state_representations[] = {
   "POSTEXIT",                  // COMPAGE_STATE_POSTEXIT
   "COMPLETED",                 // COMPAGE_STATE_COMPLETED_SUCCESS
   "COMPLETED (WITH FAILURE)",  // COMPAGE_STATE_COMPLETED_FAILURE
+  "ILLEGAL",                   // COMPAGE_STATE_ILLEGAL
 };
 
 
@@ -623,6 +624,52 @@ static int ini_parser_handler(void *pdata,
 }
 
 
+static compage_t* get_entry_by_name(const char *name){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(strcmp(it->name, name) == 0){
+      return it;
+    }
+
+    it = it->next;
+  }
+
+  return NULL;
+}
+
+
+static compage_t* get_entry_by_sid(const char *sid){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(strcmp(it->sid, sid) == 0){
+      return it;
+    }
+
+    it = it->next;
+  }
+
+  return NULL;
+}
+
+
+static compage_t* get_entry_by_id(unsigned id){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(it->id == id){
+      return it;
+    }
+
+    it = it->next;
+  }
+
+  return NULL;
+}
+
+
+
 /* ============================================================================ */
 /* PUBLIC API */
 /* ============================================================================ */
@@ -885,7 +932,7 @@ void *pthread_handler(compage_t *entry){
       COMPAGE_STATE_POSTEXIT, COMPAGE_CALLBACK_POSTEXIT);
   }
 
-  pthread_cleanup_pop(1);
+  pthread_cleanup_pop(0); // here we actually don't require a handler pop
 
   entry->state = COMPAGE_STATE_COMPLETED_SUCCESS;
   return (void*)0;
@@ -897,8 +944,10 @@ compageStatus_t compage_launch_pthreads(){
   while(it != NULL){
     if(it->enabled){
       if(pthread_create(&(it->pid), NULL, (void*(*)(void*))pthread_handler, it) != 0){
-        _W("Failed to initialize pthread");
+        _E("Failed to initialize pthread");
+        return COMPAGE_FAILED_LAUNCH;
       }
+      it->launched = 1;
     }
 
     it = it->next;
@@ -907,10 +956,33 @@ compageStatus_t compage_launch_pthreads(){
   return COMPAGE_SUCCESS;
 }
 
+compageStatus_t compage_launch_by_name(const char *name){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(strcmp(it->name, name) == 0){
+      if(pthread_create(&(it->pid),NULL,
+          (void*(*)(void*))pthread_handler,it) != 0)
+      {
+        _E("Failed to initialize pthread");
+        return COMPAGE_FAILED_LAUNCH;
+      }
+
+      it->launched = 1;
+      return COMPAGE_SUCCESS;
+    }
+
+    it = it->next;
+  }
+
+  return COMPAGE_PARSER_ERROR;
+}
+
+
 void compage_join_pthreads(){
   _I("Joining pthreads");
   while(llistHead != NULL){
-    if(llistHead->enabled){
+    if(llistHead->enabled && llistHead->launched){
       pthread_join(llistHead->pid, NULL); // TODO: use return code
     }
 
@@ -923,7 +995,7 @@ void compage_cancel_pthreads(){
 
   _I("Cancelling pthreads");
   while(it != NULL){
-    if(it->enabled){
+    if(it->enabled && it->launched){
       pthread_cancel(it->pid); // TODO: use return code
     }
 
@@ -1069,12 +1141,41 @@ unsigned compage_get_id(void *p){
   return CONTAINER_OF(compage_t, pdata, p)->id;
 }
 
-compageState_t compage_get_current_state(void *p){
+compageState_t compage_get_state(void *p){
   return CONTAINER_OF(compage_t, pdata, p)->state;
 }
 
-const char* compage_get_current_state_str(void *p){
-  return state_representations[CONTAINER_OF(compage_t, pdata, p)->state];
+compageState_t compage_get_state_by_name(const char *name){
+  compage_t *entry = get_entry_by_name(name);
+  if(entry == NULL){
+    return COMPAGE_STATE_ILLEGAL;
+  }
+
+  return entry->state;
+}
+
+compageState_t compage_get_state_by_sid(const char *sid){
+  compage_t *entry = get_entry_by_sid(sid);
+  if(entry == NULL){
+    return COMPAGE_STATE_ILLEGAL;
+  }
+
+  return entry->state;
+}
+
+compageState_t compage_get_state_by_id(unsigned id){
+  compage_t *entry = get_entry_by_id(id);
+  if(entry == NULL){
+    return COMPAGE_STATE_ILLEGAL;
+  }
+
+  return entry->state;
+}
+
+
+const char* compage_get_state_str(compageState_t state){
+  // TODO: check
+  return state_representations[state];
 }
 
 
