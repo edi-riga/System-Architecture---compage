@@ -142,34 +142,75 @@
   compage_callback_register(handler, COMPAGE_CALLBACK_POSTEXIT, arg);
 
 
+/** @brief Default (and simplest) framework initialization using the internal
+ *         compage command line. Command line arguments enables listing the
+ *         components and their configuration, generating ini configuration
+ *         files and launching compage application using either default
+ *         configuration or supplied configuration file.
+ *
+ * @param argc "Argument count" in argv array.
+ * @param argv "Argument values", array of pointers to the CLI arguments
+ *
+ * @return On success returns COMPAGE_SUCCESS, otherwise indicates the error.
+ **/
 compageStatus_t compage_main(int argc, char *argv[]);
 
-const char* compage_get_name(void *pdata);
-const char* compage_get_sid(void *pdata);
-unsigned    compage_get_id(void *pdata);
 
-compageState_t compage_get_state(void *pdata);
-compageState_t compage_get_state_by_name(const char *name);
-compageState_t compage_get_state_by_sid(const char *sid);
-compageState_t compage_get_state_by_id(unsigned id);
-const char* compage_get_state_str(compageState_t state);
-
-compageStatus_t compage_kill_all();
-
+/** @brief Registers SIGINT signal handler in the compage framework, e.g. in
+ *         case of "Ctrl+C", all launched components will be gracefully
+ *         deinitialized. Future implementations may add additional signals.
+ *
+ * @return On success returns COMPAGE_SUCCESS, otherwise returns
+ *         COMPAGE_SYSTEM_ERROR and prints error message.
+ **/
 compageStatus_t compage_configure_signaling();
 
+
+/** @brief Generates application's default configuration file in the fpath
+ *         directory. The configuration file follows INI file format, the
+ *         section names correspond to the component configuration while options
+ *         are directly applied in the component's data structure.
+ *
+ * @param fpath Cstring containing location for writing the configration file.
+ *         If there the file already exists, its contests are overwritten.
+ *
+ * @return On success returns COMPAGE_SUCCESS, otherwise return code indicates
+ *         the error.
+ **/
 compageStatus_t compage_generate_config(const char *fpath);
 
-compageStatus_t compage_init_from_file(const char *fpath);
+/** TODO: Documentation **/
+const char* compage_get_name(void *pdata);
+/** TODO: Documentation **/
+const char* compage_get_sid(void *pdata);
+/** TODO: Documentation **/
+unsigned    compage_get_id(void *pdata);
 
-compageStatus_t compage_launch_pthreads();
+/** TODO: Documentation **/
+compageState_t compage_get_state(void *pdata);
+/** TODO: Documentation **/
+compageState_t compage_get_state_by_name(const char *name);
+/** TODO: Documentation **/
+compageState_t compage_get_state_by_sid(const char *sid);
+/** TODO: Documentation **/
+compageState_t compage_get_state_by_id(unsigned id);
+/** TODO: Documentation **/
+const char* compage_get_state_str(compageState_t state);
 
+/** TODO: Documentation **/
+compageStatus_t compage_launch();
+/** TODO: Documentation **/
 compageStatus_t compage_launch_by_name(const char *name);
+/** TODO: Documentation **/
+compageStatus_t compage_launch_by_sid(const char *sid);
+/** TODO: Documentation **/
+compageStatus_t compage_launch_by_id(unsigned id);
 
-//compageStatus_t compage_launch_by_sid(const char *sid);
-
-//compageStatus_t compage_launch_by_id(unsigned id);
-
+/** TODO: Documentation **/
+compageStatus_t compage_kill_all();
+/** TODO: Documentation **/
+compageStatus_t compage_init_from_file(const char *fpath);
+/** TODO: Documentation **/
 void compage_join_pthreads();
 
 #endif

@@ -15,7 +15,8 @@ typedef enum {
   COMPAGE_PARSER_ERROR,
   COMPAGE_INVALID_TYPE,
   COMPAGE_EXIT_LOOP,
-  COMPAGE_CANCELLED
+  COMPAGE_CANCELLED,
+  COMPAGE_FAILED_LAUNCH
 } compageStatus_t;
 
 typedef enum {
@@ -31,6 +32,7 @@ typedef enum {
   COMPAGE_STATE_POSTEXIT,
   COMPAGE_STATE_COMPLETED_SUCCESS,
   COMPAGE_STATE_COMPLETED_FAILURE,
+  COMPAGE_STATE_ILLEGAL,
 } compageState_t;
 
 typedef enum {
@@ -99,6 +101,7 @@ typedef struct compage_t {
   char              *sid;       // optional component's string id, by default is same as name
   pthread_t          pid;       // process id used for launching/releasing threads
   int                enabled;   // determines if the component should be launched
+  int                launched;  // indicates if the component has been launched
   char              *name;      // name / title of the component
   compageId_t       *compageId;    // address of the id struct in the compage_ids segment
   compagePdata_t    *compagePdata; // address of the pdata struct in the compage_pdata segment

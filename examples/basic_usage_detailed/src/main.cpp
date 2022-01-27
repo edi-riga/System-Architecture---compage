@@ -98,7 +98,7 @@ int main(int argc, char *argv[]){
     return 1;
   }
 
-  if(compage_launch_pthreads() != COMPAGE_SUCCESS){
+  if(compage_launch() != COMPAGE_SUCCESS){
     printf("Faild to launch compage components\n");
     return 1;
   }

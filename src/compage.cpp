@@ -264,9 +264,6 @@ static int config_set_value_by_type(void *dst, const void *src, size_t type){
   }
 }
 
-
-
-
 static compageId_t* locate_ids_segment(const char *name){
   compageId_t *start, *stop;
 
@@ -534,7 +531,6 @@ static void llist_entry_deinit(compage_t *entry){
 }
 
 
-
 static compage_t* llist_entry_find_by_name(const char *name){
   compage_t *it = llistHead;
 
@@ -548,6 +544,22 @@ static compage_t* llist_entry_find_by_name(const char *name){
 
   return NULL;
 }
+
+
+static compage_t* llist_entry_find_by_sid(const char *sid){
+  compage_t *it = llistHead;
+
+  while(it != NULL){
+    if(strcmp(it->sid, sid) == 0){
+      return it;
+    }
+
+    it = it->next;
+  }
+
+  return NULL;
+}
+
 
 static compage_t* llist_entry_find_by_id(unsigned id){
   compage_t *it = llistHead;
@@ -622,52 +634,6 @@ static int ini_parser_handler(void *pdata,
 
   return 1;
 }
-
-
-static compage_t* get_entry_by_name(const char *name){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(strcmp(it->name, name) == 0){
-      return it;
-    }
-
-    it = it->next;
-  }
-
-  return NULL;
-}
-
-
-static compage_t* get_entry_by_sid(const char *sid){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(strcmp(it->sid, sid) == 0){
-      return it;
-    }
-
-    it = it->next;
-  }
-
-  return NULL;
-}
-
-
-static compage_t* get_entry_by_id(unsigned id){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(it->id == id){
-      return it;
-    }
-
-    it = it->next;
-  }
-
-  return NULL;
-}
-
 
 
 /* ============================================================================ */
@@ -932,13 +898,13 @@ void *pthread_handler(compage_t *entry){
       COMPAGE_STATE_POSTEXIT, COMPAGE_CALLBACK_POSTEXIT);
   }
 
-  pthread_cleanup_pop(0); // here we actually don't require a handler pop
+  pthread_cleanup_pop(1); // here we actually don't require a handler pop
 
   entry->state = COMPAGE_STATE_COMPLETED_SUCCESS;
   return (void*)0;
 }
 
-compageStatus_t compage_launch_pthreads(){
+compageStatus_t compage_launch(){
   compage_t *it = llistHead;
 
   while(it != NULL){
@@ -957,27 +923,49 @@ compageStatus_t compage_launch_pthreads(){
 }
 
 compageStatus_t compage_launch_by_name(const char *name){
-  compage_t *it = llistHead;
-
-  while(it != NULL){
-    if(strcmp(it->name, name) == 0){
-      if(pthread_create(&(it->pid),NULL,
-          (void*(*)(void*))pthread_handler,it) != 0)
-      {
-        _E("Failed to initialize pthread");
-        return COMPAGE_FAILED_LAUNCH;
-      }
-
-      it->launched = 1;
-      return COMPAGE_SUCCESS;
-    }
-
-    it = it->next;
+  compage_t *entry = llist_entry_find_by_name(name);
+  if(entry == NULL){
+    return COMPAGE_PARSER_ERROR;
   }
 
-  return COMPAGE_PARSER_ERROR;
+  if(pthread_create(&(entry->pid),NULL, (void*(*)(void*))pthread_handler,entry) != 0){
+    _E("Failed to initialize pthread");
+    return COMPAGE_FAILED_LAUNCH;
+  }
+  entry->launched = 1;
+
+  return COMPAGE_SUCCESS;
 }
 
+compageStatus_t compage_launch_by_sid(const char *sid){
+  compage_t *entry = llist_entry_find_by_sid(sid);
+  if(entry == NULL){
+    return COMPAGE_PARSER_ERROR;
+  }
+
+  if(pthread_create(&(entry->pid),NULL, (void*(*)(void*))pthread_handler,entry) != 0){
+    _E("Failed to initialize pthread");
+    return COMPAGE_FAILED_LAUNCH;
+  }
+  entry->launched = 1;
+
+  return COMPAGE_SUCCESS;
+}
+
+compageStatus_t compage_launch_by_id(unsigned id){
+  compage_t *entry = llist_entry_find_by_id(id);
+  if(entry == NULL){
+    return COMPAGE_PARSER_ERROR;
+  }
+
+  if(pthread_create(&(entry->pid),NULL, (void*(*)(void*))pthread_handler,entry) != 0){
+    _E("Failed to initialize pthread");
+    return COMPAGE_FAILED_LAUNCH;
+  }
+  entry->launched = 1;
+
+  return COMPAGE_SUCCESS;
+}
 
 void compage_join_pthreads(){
   _I("Joining pthreads");
@@ -1110,7 +1098,7 @@ compageStatus_t compage_main(int argc, char *argv[]){
   }
 
   _D("Launchig compage components using pthread API");
-  status = compage_launch_pthreads();
+  status = compage_launch();
   if(status != COMPAGE_SUCCESS){
     _E("Failed to execute components");
     return status;
@@ -1146,7 +1134,7 @@ compageState_t compage_get_state(void *p){
 }
 
 compageState_t compage_get_state_by_name(const char *name){
-  compage_t *entry = get_entry_by_name(name);
+  compage_t *entry = llist_entry_find_by_name(name);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1155,7 +1143,7 @@ compageState_t compage_get_state_by_name(const char *name){
 }
 
 compageState_t compage_get_state_by_sid(const char *sid){
-  compage_t *entry = get_entry_by_sid(sid);
+  compage_t *entry = llist_entry_find_by_sid(sid);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1164,7 +1152,7 @@ compageState_t compage_get_state_by_sid(const char *sid){
 }
 
 compageState_t compage_get_state_by_id(unsigned id){
-  compage_t *entry = get_entry_by_id(id);
+  compage_t *entry = llist_entry_find_by_id(id);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1194,5 +1182,10 @@ compageStatus_t _compage_callback_register(
 }
 
 compageStatus_t compage_kill_all(){
-  kill(0, SIGINT);
+  if(kill(0, SIGINT) != 0){
+    _SE("Failed to signal components");
+    return COMPAGE_SYSTEM_ERROR;
+  }
+
+  return COMPAGE_SUCCESS;
 }
