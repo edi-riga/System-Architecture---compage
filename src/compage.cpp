@@ -359,7 +359,7 @@ static int config_init_default(compage_t **entry,
   compageInit_t *init = locate_init_segment(id);
   compageLoop_t *loop = locate_loop_segment(id);
   compageExit_t *exit = locate_exit_segment(id);
-  if( !init || !loop || !exit ){
+  if( !init && !loop && !exit ){
     _E("Failed to locate any of component's handlers");
     free(*entry);
     return 1;
@@ -377,9 +377,9 @@ static int config_init_default(compage_t **entry,
   (*entry)->enabled      = 1; // initially component is always enabled
   (*entry)->compageId    = id;
   (*entry)->compagePdata = pdata;
-  (*entry)->handlerInit  = init->handler;
-  (*entry)->handlerLoop  = loop->handler;
-  (*entry)->handlerExit  = exit->handler;
+  (*entry)->handlerInit  = (init) ? init->handler : NULL;
+  (*entry)->handlerLoop  = (loop) ? loop->handler : NULL;
+  (*entry)->handlerExit  = (exit) ? exit->handler : NULL;
   (*entry)->sid          = (*entry)->name;
   return 0;
 }
