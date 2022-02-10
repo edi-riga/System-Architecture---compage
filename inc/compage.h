@@ -141,6 +141,10 @@
   compage_callback_register(handler, COMPAGE_CALLBACK_PREEXIT,  arg);\
   compage_callback_register(handler, COMPAGE_CALLBACK_POSTEXIT, arg);
 
+/* Force C-compatible ABI when using CPP compiler */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /** @brief Default (and simplest) framework initialization using the internal
  *         compage command line. Command line arguments enables listing the
@@ -219,5 +223,10 @@ compageStatus_t compage_kill_by_id(unsigned id);
 compageStatus_t compage_init_from_file(const char *fpath);
 /** TODO: Documentation **/
 void compage_join_pthreads();
+
+/* END - extern "C" */
+#ifdef __cplusplus
+}
+#endif
 
 #endif
