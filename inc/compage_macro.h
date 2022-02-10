@@ -6,9 +6,9 @@
 #define _STRINGIFY(s)  #s
 
 /* Concatination for building new macro function names */
-#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
-#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
-#define CONCATENATE2(arg1, arg2)  arg1##arg2
+#define COMPAGE_CONCATENATE(arg1, arg2)   COMPAGE_CONCATENATE1(arg1, arg2)
+#define COMPAGE_CONCATENATE1(arg1, arg2)  COMPAGE_CONCATENATE2(arg1, arg2)
+#define COMPAGE_CONCATENATE2(arg1, arg2)  arg1##arg2
 
 /* Magical (expansion-based) argument counting implementation */
 #define ARGUMENT_COUNT(...) ARGUMENT_COUNT_(__VA_ARGS__, ARGUMENT_INDEXES())

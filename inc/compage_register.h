@@ -51,7 +51,7 @@ compageExit_t id##_exit __attribute__((used,section("compage_exit"))) =        \
 COMPAGE_PDATA_ADD_CONFIGS_(ARGUMENT_COUNT(__VA_ARGS__), id, pdata, __VA_ARGS__)
 
 #define COMPAGE_PDATA_ADD_CONFIGS_(N, id, pdata, ...) \
-CONCATENATE(COMPAGE_PDATA_ADD_CONFIGS_,N)(id, pdata, __VA_ARGS__)
+COMPAGE_CONCATENATE(COMPAGE_PDATA_ADD_CONFIGS_,N)(id, pdata, __VA_ARGS__)
 
 
 #define COMPAGE_PDATA_ADD_CONFIGS_1(id, pdata, config, ...)\

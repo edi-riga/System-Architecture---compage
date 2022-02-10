@@ -1,6 +1,8 @@
 #ifndef _COMPAGE_HASH_H_
 #define _COMPAGE_HASH_H_
 
+#include "compage_macro.h"
+
 /**
  * Implement compile-time string hashing on string literals. Taken from
  * https://stackoverflow.com/questions/28654707/how-to-calculate-the-hash-of-a-string-literal-using-only-the-c-preprocessor
@@ -74,12 +76,6 @@
 #define H256(s,i,x) H64(s,i,H64(s,i+64,H64(s,i+128,H64(s,i+192,x))))
 
 #define HASH(s)    ((uint32_t)(H256(s,0,0)^(H256(s,0,0)>>16)))
-
-
-#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
-#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
-#define CONCATENATE2(arg1, arg2)  arg1##arg2
-
 
 // initial check prevents too-large strings from compiling
 #define STRHASH(a) ( \
