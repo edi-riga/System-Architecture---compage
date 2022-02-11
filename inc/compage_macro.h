@@ -11,10 +11,10 @@
 #define COMPAGE_CONCATENATE2(arg1, arg2)  arg1##arg2
 
 /* Magical (expansion-based) argument counting implementation */
-#define ARGUMENT_COUNT(...) ARGUMENT_COUNT_(__VA_ARGS__, ARGUMENT_INDEXES())
-#define ARGUMENT_COUNT_(...) ARGUMENT_COUNT_PREPEND(__VA_ARGS__)
-#define ARGUMENT_COUNT_PREPEND(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, N, ...) N
-#define ARGUMENT_INDEXES() 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+#define COMPAGE_ARGUMENT_COUNT(...) COMPAGE_ARGUMENT_COUNT_(__VA_ARGS__, COMPAGE_ARGUMENT_INDEXES())
+#define COMPAGE_ARGUMENT_COUNT_(...) COMPAGE_ARGUMENT_COUNT_PREPEND(__VA_ARGS__)
+#define COMPAGE_ARGUMENT_COUNT_PREPEND(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, N, ...) N
+#define COMPAGE_ARGUMENT_INDEXES() 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
 /* The famous container_of macro, the macro retreives the member container
  * structure when given a member of this function (reference name and address).
