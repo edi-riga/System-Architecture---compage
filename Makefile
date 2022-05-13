@@ -1,5 +1,11 @@
+# by default we should rely on gcc
+ifeq ($(CC),c99)
 CC:=gcc
-CPP:=g++
+else
+CC?=gcc
+endif
+
+CXX?=g++
 CROSS_COMPILE?=
 
 CFLAGS?=
@@ -43,13 +49,13 @@ out/libcompage.a: $(DIR) $(OBJ)
 	$(CROSS_COMPILE)$(AR) $(AFLAGS) $@ $(OBJ)
 
 out/libcompage.so: $(DIR) $(OBJ)
-	$(CROSS_COMPILE)$(CPP) -o $@ $(OBJ) -shared
+	$(CROSS_COMPILE)$(CXX) -o $@ $(OBJ) -shared
 
 obj/%.o: src/%.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
 
 obj/%.o: src/%.cpp
-	$(CROSS_COMPILE)$(CPP) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
+	$(CROSS_COMPILE)$(CXX) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
 
 obj/ini/%.o: lib/ini/%.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(INC) $(DEFINES) -c -o $@ $<
