@@ -996,19 +996,19 @@ compageStatus_t compage_kill_by_id(unsigned id){
 /* Component getters */
 /* -------------------------------------------------------------------------- */
 const char* compage_get_name(void *p){
-  return CONTAINER_OF(compage_t, pdata, p)->name;
+  return COMPAGE_CONTAINER_OF(compage_t, pdata, p)->name;
 }
 
 const char* compage_get_sid(void *p){
-  return CONTAINER_OF(compage_t, pdata, p)->sid;
+  return COMPAGE_CONTAINER_OF(compage_t, pdata, p)->sid;
 }
 
 unsigned compage_get_id(void *p){
-  return CONTAINER_OF(compage_t, pdata, p)->id;
+  return COMPAGE_CONTAINER_OF(compage_t, pdata, p)->id;
 }
 
 compageState_t compage_get_state(void *p){
-  return CONTAINER_OF(compage_t, pdata, p)->state;
+  return COMPAGE_CONTAINER_OF(compage_t, pdata, p)->state;
 }
 
 
