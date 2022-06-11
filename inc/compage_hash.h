@@ -75,12 +75,6 @@
 
 #define HASH(s)    ((uint32_t)(H256(s,0,0)^(H256(s,0,0)>>16)))
 
-
-#define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
-#define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
-#define CONCATENATE2(arg1, arg2)  arg1##arg2
-
-
 // initial check prevents too-large strings from compiling
 #define STRHASH(a) ( \
     (void)(sizeof(int[(sizeof(a) > 33 ? -1 : 1)])), \

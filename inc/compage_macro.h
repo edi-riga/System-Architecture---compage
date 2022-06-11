@@ -11,9 +11,9 @@
 /* Concatination for building new macro function names, note that likelihood
  * of having such a macro is high, therefore the ifndef */
 #ifndef CONCATENATE
-  #define CONCATENATE(arg1, arg2)   CONCATENATE1(arg1, arg2)
-  #define CONCATENATE1(arg1, arg2)  CONCATENATE2(arg1, arg2)
-  #define CONCATENATE2(arg1, arg2)  arg1##arg2
+  #define CONCATENATE(arg1, arg2)   COMPAGE_CONCATENATE1(arg1, arg2)
+  #define COMPAGE_CONCATENATE1(arg1, arg2)  COMPAGE_CONCATENATE2(arg1, arg2)
+  #define COMPAGE_CONCATENATE2(arg1, arg2)  arg1##arg2
 #endif
 
 /* Magical (expansion-based) argument counting implementation */
