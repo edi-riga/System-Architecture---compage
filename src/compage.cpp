@@ -1047,6 +1047,24 @@ const char* compage_get_state_str(compageState_t state){
   return state_representations[state];
 }
 
+compageStatus_t compage_get_config_by_name(const char *name, const char *key, void *dst, unsigned size){
+
+  compage_t *entry = llist_entry_find_by_name(llistHead, name);
+  if(entry == NULL){
+    return COMPAGE_WRONG_ARGS; // TODO: more descriptive error code
+  }
+
+  compageConfig_t *config = locate_config_segment(entry->compagePdata, key);
+  if(config == NULL){
+    return COMPAGE_WRONG_ARGS; // TODO: more descriptive error code
+  }
+
+  compage_cfg_get_value(dst, entry->pdata+config->offset, config->type);
+
+  /* TODO: should add check for size correspondence with the type */
+  return COMPAGE_SUCCESS;
+}
+
 
 /* -------------------------------------------------------------------------- */
 /* Other */

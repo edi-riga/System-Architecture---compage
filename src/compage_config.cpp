@@ -109,3 +109,52 @@ int compage_cfg_set_value(void *dst, const void *src, size_t type){
       return -1;
   }
 }
+
+
+/* copy value depending on the type */
+void compage_cfg_get_value(void *dst, const void *src, size_t type){
+  _D("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(addr));
+
+  switch(type){
+    case 'b': /* bool     */
+      *(int8_t*)dst = (*(int8_t*)src) ? true : false;
+      return;
+    case 'a': /* int8_t   */
+      *(int8_t*)dst = *(int8_t*)src;
+      return;
+    case 'h': /* uint8_t  */
+      *(uint8_t*)dst = *(uint8_t*)src;
+      return;
+    case 's': /* int16_t  */
+      *(int16_t*)dst = *(int16_t*)src;
+      return;
+    case 't': /* uint16_t */
+      *(uint16_t*)dst = *(uint16_t*)src;
+      return;
+    case 'i': /* int32_t  */
+      *(int32_t*)dst = *(int32_t*)src;
+      return;
+    case 'j': /* uint32_t */
+      *(uint32_t*)dst = *(uint32_t*)src;
+      return;
+    case 'l': /* int64_t  */
+      *(int64_t*)dst = *(int64_t*)src;
+      return;
+    case 'm': /* uint64_t */
+      *(uint64_t*)dst = *(uint64_t*)src;
+      return;
+    case 'f': /* float    */
+      *(float*)dst = *(float*)src;
+      return;
+    case 'd': /* double   */
+      *(double*)dst = *(double*)src;
+      return;
+    case 0x6350: /* char* */
+    case 0x4b50: /* const char* */
+      *(char**)dst = *(char**)src;
+      return;
+    default:
+      return;
+  }
+}
+
