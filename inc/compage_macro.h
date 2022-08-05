@@ -1,9 +1,12 @@
 #ifndef _COMPAGE_MACRO_H_
 #define _COMPAGE_MACRO_H_
 
-/* Quite standard macro stringification approach */
-#define STRINGIFY(s)   _STRINGIFY(s)
-#define _STRINGIFY(s)  #s
+/* Commong macro for converting variable name into string, note that likelihood
+ * of having such a macro is high, therefore the 'ifndef' */
+#ifndef STRINGIFY
+  #define STRINGIFY(s)   _STRINGIFY(s)
+  #define _STRINGIFY(s)  #s
+#endif
 
 /* Concatination for building new macro function names */
 #define COMPAGE_CONCATENATE(arg1, arg2)   COMPAGE_CONCATENATE1(arg1, arg2)
@@ -25,7 +28,7 @@
  *
  * For example, we can retreive compage_t from its pdata member with:
  *     CONTAINER_OF(compage_t, pdata, pdata_ptr) */
-#define CONTAINER_OF(container_t, member_ref, member_addr) \
+#define COMPAGE_CONTAINER_OF(container_t, member_ref, member_addr) \
 ((container_t*)( \
   (uint64_t)member_addr - \
   (uint64_t)(((container_t*)0)->member_ref) \

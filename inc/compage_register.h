@@ -24,7 +24,7 @@ compagePdata_t __##id##_pdata __attribute__((used,section("compage_pdata"))) = \
 
 
 #define _COMPAGE_REGISTER_INIT(id, handler)                                    \
-compageInit_t __##id##_init __attribute__((used,section("compage_init"))) =    \
+compageInit_t id##_init_ __attribute__((used,section("compage_init"))) =        \
 {                                                                              \
   &__##id##_id,                                                                \
   (compageStatus_t(*)(void*))handler                                           \
@@ -32,7 +32,7 @@ compageInit_t __##id##_init __attribute__((used,section("compage_init"))) =    \
 
 
 #define _COMPAGE_REGISTER_LOOP(id, handler)                                    \
-compageLoop_t __##id##_loop __attribute__((used,section("compage_loop"))) =    \
+compageLoop_t id##_loop_ __attribute__((used,section("compage_loop"))) =        \
 {                                                                              \
   &__##id##_id,                                                                \
   (compageStatus_t(*)(void*))handler                                           \
@@ -40,7 +40,7 @@ compageLoop_t __##id##_loop __attribute__((used,section("compage_loop"))) =    \
 
 
 #define _COMPAGE_REGISTER_EXIT(id, handler)                                    \
-compageExit_t __##id##_exit __attribute__((used,section("compage_exit"))) =    \
+compageExit_t id##_exit_ __attribute__((used,section("compage_exit"))) =        \
 {                                                                              \
   &__##id##_id,                                                                \
   (compageStatus_t(*)(void*))handler                                           \

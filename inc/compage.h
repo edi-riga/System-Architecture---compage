@@ -202,6 +202,9 @@ compageState_t compage_get_state_by_id(unsigned id);
 const char* compage_get_state_str(compageState_t state);
 
 /** TODO: Documentation **/
+compageStatus_t compage_get_config_by_name(const char *name, const char *key, void *dst, unsigned size);
+
+/** TODO: Documentation **/
 compageStatus_t compage_launch();
 /** TODO: Documentation **/
 compageStatus_t compage_launch_by_name(const char *name);
@@ -225,6 +228,8 @@ compageStatus_t compage_init_from_file(const char *fpath);
 compageStatus_t compage_init_default();
 /** TODO: Documentation **/
 void compage_join_pthreads();
+/** TODO: Documentation **/
+compageStatus_t compage_init_default();
 
 /* END - extern "C" */
 #ifdef __cplusplus

@@ -1,4 +1,6 @@
 *.swp
 *.o
 *.ini
-*out
+*out/
+*dep/
+*obj/
