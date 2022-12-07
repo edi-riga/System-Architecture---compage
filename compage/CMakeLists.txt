@@ -23,7 +23,7 @@ install(
     inc/compage_types.h
     inc/compage_macro.h
   DESTINATION
-    include)
+    include/edi)
 
 
 # Add library
