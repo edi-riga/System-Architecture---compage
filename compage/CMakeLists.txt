@@ -25,6 +25,25 @@ install(
   DESTINATION
     include/edi)
 
+# Include routines for generating packageConfig file
+include(CMakePackageConfigHelpers)
+
+# Generate compageConfig.cmake file, later used by the find_package() routine
+configure_package_config_file(
+  CMakeConfig.cmake.in
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/compageConfig.cmake"
+  INSTALL_DESTINATION "lib/cmake/${PROJECT_NAME}"
+)
+
+# Install generated compageConfig.cmake file
+install(
+  FILES
+    "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/compageConfig.cmake"
+  DESTINATION
+    lib/cmake/compage
+  COMPONENT
+    dev)
+
 
 # Add library
 target_link_libraries(compage
