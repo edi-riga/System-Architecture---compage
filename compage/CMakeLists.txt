@@ -2,13 +2,17 @@
 AUX_SOURCE_DIRECTORY(src SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(lib/ini SOURCE_FILES)
 
-# Compile static/shared libraries using given sources
-add_library(compage OBJECT ${SOURCE_FILES})
-add_library(compage_static STATIC $<TARGET_OBJECTS:compage>)
-add_library(compage_shared SHARED $<TARGET_OBJECTS:compage>)
+# Set up library interface
+add_library(compage INTERFACE)
+
+# Set up separate targets for static/shared libraries (because .so must be compiled with PIC)
+add_library(compage_static_object OBJECT ${SOURCE_FILES})
+add_library(compage_shared_object OBJECT ${SOURCE_FILES})
+add_library(compage_static STATIC $<TARGET_OBJECTS:compage_static_object>)
+add_library(compage_shared SHARED $<TARGET_OBJECTS:compage_shared_object>)
 
 # Properties
-set_property(TARGET compage PROPERTY POSITION_INDEPENDENT_CODE 1)
+set_property(TARGET compage_shared_object PROPERTY POSITION_INDEPENDENT_CODE 1)
 set_property(TARGET compage_static PROPERTY OUTPUT_NAME compage)
 set_property(TARGET compage_shared PROPERTY OUTPUT_NAME compage)
 
@@ -45,16 +49,21 @@ install(
     dev)
 
 
-# Add library
-target_link_libraries(compage
-  pthread)
+# Set up interface libraries
+target_link_libraries(compage INTERFACE pthread)
 
-
-# Includes
-target_include_directories(compage PUBLIC
+# Set up interface include directories
+target_include_directories(compage INTERFACE
   "${PROJECT_SOURCE_DIR}/compage/inc"
   "${PROJECT_SOURCE_DIR}/compage/lib"
 )
+
+
+# Add interface properties to all targets
+target_link_libraries(compage_static compage)
+target_link_libraries(compage_shared compage)
+target_link_libraries(compage_static_object compage)
+target_link_libraries(compage_shared_object compage)
 
 
 # Build configurations

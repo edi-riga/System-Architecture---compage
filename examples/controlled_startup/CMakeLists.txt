@@ -5,7 +5,7 @@ AUX_SOURCE_DIRECTORY(src SOURCE_FILES)
 add_executable(controller_startup ${SOURCE_FILES})
 
 target_link_libraries(controller_startup
-  compage)
+  compage_static)
 
 # Includes
 target_include_directories(controller_startup PUBLIC

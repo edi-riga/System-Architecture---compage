@@ -741,7 +741,7 @@ compageStatus_t compage_launch(){
   compage_t *it = llistHead;
 
   while(it != NULL){
-    if(it->enabled){
+    if((it->enabled) and !(it->launched)){
       if(pthread_create(&(it->pid), NULL, (void*(*)(void*))pthread_handler, it) != 0){
         _E("Failed to initialize pthread");
         return COMPAGE_FAILED_LAUNCH;

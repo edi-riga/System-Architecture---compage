@@ -5,7 +5,7 @@ AUX_SOURCE_DIRECTORY(src SOURCE_FILES)
 add_executable(basic_usage_detailed ${SOURCE_FILES})
 
 target_link_libraries(basic_usage_detailed
-  compage)
+  compage_static)
 
 # Includes
 target_include_directories(basic_usage_detailed PUBLIC
