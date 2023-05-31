@@ -166,6 +166,12 @@ static compageId_t* locate_ids_segment(const char *name){
   stop  = (compageId_t*)get_segment_ids_stop();
 
   while(start < stop){
+    /* ignore dummy component */
+    if(!start->name){
+      start++;
+      continue;
+    }
+    
     if( strcmp(start->name, name) == 0){
       return start;
     }
