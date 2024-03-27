@@ -65,9 +65,9 @@ int compage_cfg_set_value(void *dst, const void *src, size_t type){
 
   switch(type){
     case 'b': /* bool     */
-      if (strcmp((char*)src, "true") == 0) {
+      if ((strcmp((char*)src, "true") == 0) || (strcmp((char*)src, "1") == 0)) {
         *(int8_t*)dst = 1;
-      } else if (strcmp((char*)src, "false") == 0) {
+      } else if ((strcmp((char*)src, "false") == 0) || (strcmp((char*)src, "0") == 0)) {
         *(int8_t*)dst = 0;
       } else {
         return -1;
