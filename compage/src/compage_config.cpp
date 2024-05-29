@@ -119,7 +119,7 @@ int compage_cfg_set_value(void *dst, const void *src, size_t type){
 
 /* copy value depending on the type */
 void compage_cfg_get_value(void *dst, const void *src, size_t type){
-  _D("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(addr));
+  _D("Type: 0x%x; Hex value: 0x%x", (unsigned)type, *(unsigned*)(src));
 
   switch(type){
     case 'b': /* bool     */
