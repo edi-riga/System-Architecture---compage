@@ -1,7 +1,7 @@
 # Aggregate source files
 AUX_SOURCE_DIRECTORY(src SOURCE_FILES)
 
-# RTCLM Client
+# Add example's executable
 add_executable(controller_startup ${SOURCE_FILES})
 
 target_link_libraries(controller_startup
