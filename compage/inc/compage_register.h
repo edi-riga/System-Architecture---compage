@@ -8,7 +8,8 @@
 
 
 #define _COMPAGE_REGISTER_ID(id)                                               \
-compageId_t __##id##_id __attribute__((used,section("compage_ids"))) =         \
+compageId_t __##id##_id __attribute__((used,section("compage_ids")))           \
+                        __attribute__((no_reorder)) =                          \
 {                                                                              \
   STRINGIFY(id)                                                                \
 };
@@ -24,7 +25,7 @@ compagePdata_t __##id##_pdata __attribute__((used,section("compage_pdata"))) = \
 
 
 #define _COMPAGE_REGISTER_INIT(id, handler)                                    \
-compageInit_t id##_init_ __attribute__((used,section("compage_init"))) =        \
+compageInit_t id##_init_ __attribute__((used,section("compage_init"))) =       \
 {                                                                              \
   &__##id##_id,                                                                \
   (compageStatus_t(*)(void*))handler                                           \
@@ -32,7 +33,7 @@ compageInit_t id##_init_ __attribute__((used,section("compage_init"))) =        
 
 
 #define _COMPAGE_REGISTER_LOOP(id, handler)                                    \
-compageLoop_t id##_loop_ __attribute__((used,section("compage_loop"))) =        \
+compageLoop_t id##_loop_ __attribute__((used,section("compage_loop"))) =       \
 {                                                                              \
   &__##id##_id,                                                                \
   (compageStatus_t(*)(void*))handler                                           \
@@ -40,7 +41,7 @@ compageLoop_t id##_loop_ __attribute__((used,section("compage_loop"))) =        
 
 
 #define _COMPAGE_REGISTER_EXIT(id, handler)                                    \
-compageExit_t id##_exit_ __attribute__((used,section("compage_exit"))) =        \
+compageExit_t id##_exit_ __attribute__((used,section("compage_exit"))) =       \
 {                                                                              \
   &__##id##_id,                                                                \
   (compageStatus_t(*)(void*))handler                                           \
@@ -97,9 +98,10 @@ COMPAGE_CONCATENATE(COMPAGE_PDATA_ADD_CONFIGS_,N)(id, pdata, __VA_ARGS__)
   COMPAGE_PDATA_ADD_CONFIGS_13(id, pdata, __VA_ARGS__)
 
 #define COMPAGE_PDATA_ADD_CONFIG_SINGLE(id, pdata, config)                     \
-compageConfig_t id##_config_##config __attribute__((section("compage_config"))) =\
+compageConfig_t id##_config_##config __attribute__((section("compage_config")))\
+                                     __attribute__((no_reorder)) =             \
 {                                                                              \
-  &__##id##_pdata,                                                                 \
+  &__##id##_pdata,                                                             \
   STRINGIFY(config),                                                           \
   COMPAGE_TYPEID(((typeof(pdata)*)0)->config),                                 \
   (size_t)&((typeof(pdata)*)0)->config                                         \

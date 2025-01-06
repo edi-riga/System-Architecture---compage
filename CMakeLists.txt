@@ -19,6 +19,6 @@ IF(DEBUG)
 ENDIF(DEBUG)
 
 
-# RTCLM component libraries and tests
+# compage library an usage examples
 add_subdirectory(compage)
 add_subdirectory(examples)
