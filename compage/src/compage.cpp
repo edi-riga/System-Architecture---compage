@@ -550,8 +550,8 @@ static void *pthread_handler(compage_t *entry){
   if( pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0){
     _W("Failed to enable thread cancellation");
   }
-  if( pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL) != 0){
-    _W("Failed to setup asynchronous cancellation mode");
+  if( pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0){
+    _W("Failed to setup deferred cancellation mode");
   }
   pthread_cleanup_push( (void (*)(void*))pthread_handler_cleanup, entry);
 
