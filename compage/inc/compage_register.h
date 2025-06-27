@@ -107,6 +107,17 @@ compageConfig_t id##_config_##config __attribute__((section("compage_config")))\
   (size_t)&((typeof(pdata)*)0)->config                                         \
 };
 
+
+#define _COMPAGE_ADD_GLOBAL_CONFIG(variable)                                   \
+compageConfigGlobal_t __global_##variable                                      \
+__attribute__((used,section("compage_global")))                                \
+__attribute__((no_reorder)) =                                                  \
+{                                                                              \
+  &variable,                                                                   \
+  STRINGIFY(variable),                                                         \
+  COMPAGE_TYPEID(variable)                                                     \
+};
+
 compageStatus_t _compage_callback_register(
   compageCallbackHandler_t handler,
   compageCallbackType_t type,

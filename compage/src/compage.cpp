@@ -34,6 +34,8 @@ compageExit_t dummy_exit __attribute__((used,section("compage_exit"))) =
   {NULL, NULL};
 compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
   {NULL, NULL, 0, 0};
+compageConfigGlobal_t dummy_config_global __attribute__((used,section("compage_global"))) =
+  {NULL, NULL, 0};
 
 
 /* We utilize a linked list structure for the compage components */
@@ -79,6 +81,9 @@ extern unsigned __stop_compage_exit;
 
 extern unsigned __start_compage_config;
 extern unsigned __stop_compage_config;
+
+extern unsigned __start_compage_global;
+extern unsigned __stop_compage_global;
 
 
 inline void* get_segment_ids_start(){
@@ -141,6 +146,16 @@ inline uint64_t get_segment_config_size(){
     return (uint64_t)get_segment_config_stop() - (uint64_t)get_segment_config_start();
 }
 
+inline void* get_segment_global_start(){
+    return &__start_compage_global;
+}
+inline void* get_segment_global_stop(){
+    return &__stop_compage_global;
+}
+inline uint64_t get_segment_global_size(){
+    return (uint64_t)get_segment_global_stop() - (uint64_t)get_segment_global_start();
+}
+
 
 /* ============================================================================ */
 /* PRIVATE API (STATIC / PRIVATE TO THIS FILE) */
@@ -150,12 +165,16 @@ static uint32_t get_component_count(){
   return get_segment_ids_size()/sizeof(compageId_t);
 }
 
+static uint32_t get_global_config_count(){
+  return get_segment_global_size()/sizeof(compageConfigGlobal_t);
+}
+
 static void print_help_message(const char *appName){  // refactor
   puts("USAGE:");
   printf("   %s -h, --help             - prints this message\n", appName);
   printf("   %s -d, --default          - run application with default configuration\n", appName);
   printf("   %s -g, --generate <fname> - generate default config file as <fname>\n", appName);
-  printf("   %s -l, --list             - list available components\n", appName);
+  printf("   %s -l, --list             - list available components/configuration\n", appName);
   printf("   %s <fname>                - use <fname> configuration file\n", appName);
 }
 
@@ -335,6 +354,35 @@ static compageStatus_t write_default_config(FILE *fd){
 }
 
 
+static compageStatus_t write_default_config_global(FILE *fd){
+  compageConfigGlobal_t *config_start, *config_stop;
+  char buf[256];
+
+  /* parse and save corresponding configurations */
+  config_start = (compageConfigGlobal_t*)get_segment_global_start();
+  config_stop  = (compageConfigGlobal_t*)get_segment_global_stop();
+  while(config_start < config_stop){
+
+    /* ignore dummy configuration and check if config corresponds to pdata */
+    if((config_start->ptr) == NULL
+    || (config_start->name == NULL)){
+      config_start++;
+      continue;
+    }
+
+    /* write config's name and default value */
+    _D("Configuration added: %s@%p (type:%lu)", config_start->name, config_start, config_start->type);
+      fprintf(fd, "%s=%s\n", config_start->name,
+        compage_cfg_get_string(buf, sizeof(buf), config_start->type,
+          config_start->ptr));
+
+    config_start++;
+  }
+  putc('\n', fd);
+  return COMPAGE_SUCCESS;
+}
+
+
 static int config_init_default(compage_t **entry,
   const char *componentName,
   const char *configName)
@@ -390,6 +438,7 @@ static int config_init_default(compage_t **entry,
   return 0;
 }
 
+
 static int config_parse_key_value(compage_t *entry, const char *key, const char *value){
   compageConfig_t *config;
 
@@ -416,11 +465,59 @@ static void llist_entry_deinit(compage_t *entry){
 }
 
 
+static int config_parse_key_value_global(const char* key, const char* value){
+  compageConfigGlobal_t *config_start, *config_stop;
+  _D("Attempting to update global config (key: %s, value: %s)", key, value);
+
+  /* attempt to find configuration */
+  config_start = (compageConfigGlobal_t*)get_segment_global_start();
+  config_stop  = (compageConfigGlobal_t*)get_segment_global_stop();
+  //_I("config_start: %p", config_start);
+  //_I("config_stop: %p", config_stop);
+  //_I("config_stop: %lu", get_segment_global_size());
+
+
+  while(config_start < config_stop){
+    //_I("searching@%p: name=%s; ptr=%p", config_start, config_start->name, config_start->ptr);
+    //_I("%u", config_start->ptr == NULL? 1:0);
+    //_I("%u", config_start->name == NULL? 1:0);
+    //_I("%u", strcmp(config_start->name, key) != 0? 1:0);
+    /* ignore dummy configurations and other variable keys */
+    if((config_start->ptr) == NULL
+    || (config_start->name == NULL)
+    || (strcmp(config_start->name, key) != 0)){
+      config_start++;
+      continue;
+    }
+
+    /* at this point the key corresponds to the global variable, update it */
+    if(compage_cfg_set_value((char*)config_start->ptr,
+    value, config_start->type) != 0){
+      _W("Failed to set configured value");
+    }
+
+    _D("Global configuration updated: %s@%p (type:%lu)",
+      config_start->name, config_start->ptr, config_start->type);
+
+    config_start++;
+  }
+
+  return 0;
+}
+
+
 static int ini_parser_handler(void *pdata,
   const char *section, const char *key, const char *value, int is_new_section)
 {
   _D("INI Section: %s; Key: %s; Value: %s; New section: %d",
     section, key, value, is_new_section);
+
+  /* it is possible to have confirutaion options without a defined section, i.e.
+   * global scope variables not specific to any of the components, these
+   * variables must be taken care of before initializing the components */
+  if(section == NULL || section[0] == '\0'){
+    return config_parse_key_value_global(key, value);
+  }
 
   /* we support multiple segments with the same name, but because segment name
    * is also component's string-id we need a unique identification mechanism
@@ -736,11 +833,19 @@ compageStatus_t compage_generate_config(const char *fpath){
     return COMPAGE_SYSTEM_ERROR;
   }
 
-  status = write_default_config(fd);
-  fclose(fd);
-  return status;
-}
+  status  = write_default_config_global(fd);
+  if(status != COMPAGE_SUCCESS){
+    _W("Failed to write default global configuration");
+  }
 
+  status = write_default_config(fd);
+  if(status != COMPAGE_SUCCESS){
+    _W("Failed to write default component configuration");
+  }
+
+  fclose(fd);
+  return status; // TODO: status from global config is ignored
+}
 
 
 compageStatus_t compage_launch(){
@@ -867,8 +972,9 @@ compageStatus_t compage_main(int argc, char *argv[]){
   }
 
   _D("Checking the added component count");
-  if(get_component_count() <= 1){ // note, there is 1 dummy component
-    _W("No COMPAGE components added to the framework");
+  if(get_component_count() <= 1 && get_global_config_count() <= 1){
+    // note, there is 1 dummy component and 1 dummy global config
+    _W("No COMPAGE components or global configurations added to the framework");
     return COMPAGE_NO_COMPONENTS;
   }
 
