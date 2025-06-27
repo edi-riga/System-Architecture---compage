@@ -190,7 +190,7 @@ static compageId_t* locate_ids_segment(const char *name){
       start++;
       continue;
     }
-    
+
     if( strcmp(start->name, name) == 0){
       return start;
     }
@@ -472,16 +472,8 @@ static int config_parse_key_value_global(const char* key, const char* value){
   /* attempt to find configuration */
   config_start = (compageConfigGlobal_t*)get_segment_global_start();
   config_stop  = (compageConfigGlobal_t*)get_segment_global_stop();
-  //_I("config_start: %p", config_start);
-  //_I("config_stop: %p", config_stop);
-  //_I("config_stop: %lu", get_segment_global_size());
-
 
   while(config_start < config_stop){
-    //_I("searching@%p: name=%s; ptr=%p", config_start, config_start->name, config_start->ptr);
-    //_I("%u", config_start->ptr == NULL? 1:0);
-    //_I("%u", config_start->name == NULL? 1:0);
-    //_I("%u", strcmp(config_start->name, key) != 0? 1:0);
     /* ignore dummy configurations and other variable keys */
     if((config_start->ptr) == NULL
     || (config_start->name == NULL)
@@ -760,25 +752,18 @@ void compage_deinit(){
 }
 
 
-compageStatus_t compage_print_components(const char *config_file){
+compageStatus_t compage_print_components(){
   compageConfig_t *config_start, *config_stop;
   compageStatus_t status;
   compage_t *it;
   char buf[256];
 
-  /* initialize the compage component linked list, use either the supplied
-   * configuration file of initialize list from the default configuration in
-   * the elf compage_* sections */
-  if(config_file){
-    status = compage_init_from_file(config_file);
-  } else {
-    status = compage_init_default();
-  }
-
-  if(status != COMPAGE_SUCCESS){
-    _E("Failed to initialize compage component list");
+  if(llistHead == NULL){
+    _E("Compage component list not initialzed");
     return status;
   }
+
+  printf("Displaying component configuration\n");
 
   /* iterate through all components in the linked list */
   it = llistHead;
@@ -819,6 +804,36 @@ compageStatus_t compage_print_components(const char *config_file){
 
   /* deinitialize compage linked list */
   compage_deinit();
+  return COMPAGE_SUCCESS;
+}
+
+compageStatus_t compage_print_global_config(){
+  compageStatus_t status;
+  compageConfigGlobal_t *config_start;
+  compageConfigGlobal_t *config_stop;
+  char buf[256];
+
+  printf("Displaying global configuration\n");
+
+  /* find/loop through configuration */
+  config_start = (compageConfigGlobal_t*)get_segment_global_start();
+  config_stop  = (compageConfigGlobal_t*)get_segment_global_stop();
+  while(config_start < config_stop){
+    /* ignore dummy configurations and other variable keys */
+    if((config_start->ptr) == NULL
+    || (config_start->name == NULL)){
+      config_start++;
+      continue;
+    }
+
+    /* at this point the key corresponds to the global variable, display it */
+    printf(COLOR_YELLOW "  %s" COLOR_DEFAULT ": %s\n",
+      config_start->name,
+      compage_cfg_get_string(buf, sizeof(buf), config_start->type, config_start->ptr));
+
+    config_start++;
+  }
+
   return COMPAGE_SUCCESS;
 }
 
@@ -956,6 +971,50 @@ compageStatus_t compage_configure_signaling(){
   return COMPAGE_SUCCESS;
 }
 
+
+static inline compageStatus_t cmd_list_config(const char *config_file){
+  compageStatus_t status;
+
+  /* initialize compage's component linked list, use either the supplied
+   * configuration file of initialize list from the default configuration in
+   * the elf compage_* sections */
+  if(config_file){
+    status = compage_init_from_file(config_file);
+  } else {
+    status = compage_init_default();
+  }
+
+  if(status != COMPAGE_SUCCESS){
+    _E("Failed to initialize compage objects");
+    return status;
+  }
+
+  /* display global configuration */
+  if(get_global_config_count() <= 1){ // NOTE: a dummy config
+    printf("No global configuration to display\n");
+  } else {
+    status = compage_print_global_config();
+    if(status != COMPAGE_SUCCESS){
+      _E("Failed to display global configuration");
+      return status;
+    }
+  }
+
+  /* display component-based configuration */
+  if(get_component_count() <= 1){ // NOTE: a dummy config
+    printf("No component configurations to display\n");
+  } else {
+    status = compage_print_components();
+    if(status != COMPAGE_SUCCESS){
+      _E("Failed to display component configuration");
+      return status;
+    }
+  }
+
+  return COMPAGE_SUCCESS;
+}
+
+
 compageStatus_t compage_main(int argc, char *argv[]){
   compageStatus_t status;
 
@@ -997,20 +1056,20 @@ compageStatus_t compage_main(int argc, char *argv[]){
   int c;
   while( (c = getopt_long(argc, argv, "hdl::g:", long_options, NULL)) != -1){
     switch(c){
-      case 'l':  // LIST COMPONENTS
+      case 'l':  // LIST CONFIGURATION
         // in case of '-largument' syntax the optarg will be set
         if(optarg != NULL){
-          return compage_print_components(optarg);
+          return cmd_list_config(optarg);
         }
 
         // in case of '-l argument' syntax the next argv value is the argument
         // (optind is index of the next value to be processed)
         if(optind < argc && argv[optind][0] != '-'){
-          return compage_print_components(argv[optind]);
+          return cmd_list_config(argv[optind]);
         }
 
         // in case of '-l' syntax there is no argument
-        return compage_print_components(NULL);
+        return cmd_list_config(NULL);
 
       case 'g':  // GENERATE CONFIGURATION FILE
         return compage_generate_config(optarg);
