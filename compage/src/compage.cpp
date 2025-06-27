@@ -17,11 +17,12 @@
 
 /* The compage framework depends on the existence of custom segments in the ELF
  * executable file: "copmage_ids", "compage_pdata", "compage_init",
- * "compage_loop", "compage_exit" and "compage_config". Linker creates unique
- * labels for each segment, such as "__start_compage_ids" and "__stop_compage_ids".
- * The framework uses these labels in the parser logic and if, for some reason,
- * the user has not defined any compage components, linkage of the executable
- * will fail. To avoid this, we add some dummy entries for every segment. */
+ * "compage_loop", "compage_exit", "compage_config", "compage_global". Linker
+ * creates unique labels for each segment, such as "__start_compage_ids" and
+ * "__stop_compage_ids". The framework uses these labels in the parser logic and
+ * if, for some reason, the user has not defined any compage components, linkage
+ * of the executable may fail. To avoid this, we add some dummy entries for
+ * every segment. */
 compageId_t dummy_id __attribute__((used,section("compage_ids"))) =
   {NULL};
 compagePdata_t dummy_pdata __attribute__((used,section("compage_pdata"))) =
@@ -38,14 +39,14 @@ compageConfigGlobal_t dummy_config_global __attribute__((used,section("compage_g
   {NULL, NULL, 0};
 
 
-/* We utilize a linked list structure for the compage components */
-static compage_t *llistHead;
-/* We support multiple segments with the same name so we maintain unique ids */
-static unsigned entry_id = 0;
+/* Linked list structure for the compage components */
+static compage_t *g_llist_head;
+/* Unique IDs to support multiple segments with the same name */
+static unsigned g_entry_id = 0;
 /* Shared handlers for monitoring the component lifecyles */
-static compageCallback_t callbacks[COMPAGE_CALLBACK_COUNT];
-/* We maintain a list of state string representations for convenience */
-static const char *state_representations[] = {
+static compageCallback_t g_callbacks[COMPAGE_CALLBACK_COUNT];
+/* A list of component execution state string representations */
+static const char *g_state_representations[] = {
   "IDLE",                      // COMPAGE_STATE_IDLE
   "PREINIT",                   // COMPAGE_STATE_PREINIT
   "INIT",                      // COMPAGE_STATE_INIT
@@ -516,13 +517,13 @@ static int ini_parser_handler(void *pdata,
    * for all the components. Here we solve this issue by just asigning a unique
    * number to each component that is incremented with every new section */
   if(is_new_section){
-    entry_id++;
+    g_entry_id++;
   }
 
   /* try to find entry in the forwardly linked list, if entry is nonexistsant
    * allocate new compage_t entry, set section as its ID and add it to the
    * linked list */
-  compage_t *entry = llist_entry_find_by_id(llistHead, entry_id);
+  compage_t *entry = llist_entry_find_by_id(g_llist_head, g_entry_id);
   if(entry == NULL){
     /* allocate and fill the compage component's data structure */
     if( config_init_default(&entry, section, section) != 0){
@@ -531,10 +532,10 @@ static int ini_parser_handler(void *pdata,
     }
 
     /* set entrie's unique ID*/
-    entry->id = entry_id;
+    entry->id = g_entry_id;
 
     /* add entry to the global llist */
-    llist_entry_add(&llistHead, entry);
+    llist_entry_add(&g_llist_head, entry);
   }
 
 
@@ -593,9 +594,9 @@ static compageStatus_t compage_check_segments(){
 /* ============================================================================ */
 static inline void pthread_handler_execute_callback(compage_t *entry,
  compageState_t state, compageCallbackType_t callback_type){
-  if(callbacks[callback_type].handler){
+  if(g_callbacks[callback_type].handler){
     entry->state = state;
-    callbacks[callback_type].handler(callbacks[callback_type].arg, entry->pdata);
+    g_callbacks[callback_type].handler(g_callbacks[callback_type].arg, entry->pdata);
   }
 }
 
@@ -734,10 +735,10 @@ compageStatus_t compage_init_default(){
     }
 
     /* set entrie's unique ID*/
-    entry->id = entry_id++;
+    entry->id = g_entry_id++;
 
     /* add entry to the global llist */
-    llist_entry_add(&llistHead, entry);
+    llist_entry_add(&g_llist_head, entry);
 
     ids_start++;
   }
@@ -746,8 +747,8 @@ compageStatus_t compage_init_default(){
 }
 
 void compage_deinit(){
-  while(llistHead != NULL){
-    llist_entry_deinit(llist_entry_remove(&llistHead));
+  while(g_llist_head != NULL){
+    llist_entry_deinit(llist_entry_remove(&g_llist_head));
   }
 }
 
@@ -758,7 +759,7 @@ compageStatus_t compage_print_components(){
   compage_t *it;
   char buf[256];
 
-  if(llistHead == NULL){
+  if(g_llist_head == NULL){
     _E("Compage component list not initialzed");
     return status;
   }
@@ -766,7 +767,7 @@ compageStatus_t compage_print_components(){
   printf("Displaying component configuration\n");
 
   /* iterate through all components in the linked list */
-  it = llistHead;
+  it = g_llist_head;
   while(it != NULL){
 
     /* print component's string id, universal id and name */
@@ -864,7 +865,7 @@ compageStatus_t compage_generate_config(const char *fpath){
 
 
 compageStatus_t compage_launch(){
-  compage_t *it = llistHead;
+  compage_t *it = g_llist_head;
 
   while(it != NULL){
     if((it->enabled) and !(it->launched)){
@@ -882,7 +883,7 @@ compageStatus_t compage_launch(){
 }
 
 compageStatus_t compage_launch_by_name(const char *name){
-  compage_t *entry = llist_entry_find_by_name(llistHead, name);
+  compage_t *entry = llist_entry_find_by_name(g_llist_head, name);
   if(entry == NULL){
     return COMPAGE_PARSER_ERROR;
   }
@@ -897,7 +898,7 @@ compageStatus_t compage_launch_by_name(const char *name){
 }
 
 compageStatus_t compage_launch_by_sid(const char *sid){
-  compage_t *entry = llist_entry_find_by_sid(llistHead, sid);
+  compage_t *entry = llist_entry_find_by_sid(g_llist_head, sid);
   if(entry == NULL){
     return COMPAGE_PARSER_ERROR;
   }
@@ -912,7 +913,7 @@ compageStatus_t compage_launch_by_sid(const char *sid){
 }
 
 compageStatus_t compage_launch_by_id(unsigned id){
-  compage_t *entry = llist_entry_find_by_id(llistHead, id);
+  compage_t *entry = llist_entry_find_by_id(g_llist_head, id);
   if(entry == NULL){
     return COMPAGE_PARSER_ERROR;
   }
@@ -928,17 +929,17 @@ compageStatus_t compage_launch_by_id(unsigned id){
 
 void compage_join_pthreads(){
   _I("Joining pthreads");
-  while(llistHead != NULL){
-    if(llistHead->enabled && llistHead->launched){
-      pthread_join(llistHead->pid, NULL); // TODO: use return code
+  while(g_llist_head != NULL){
+    if(g_llist_head->enabled && g_llist_head->launched){
+      pthread_join(g_llist_head->pid, NULL); // TODO: use return code
     }
 
-    llist_entry_deinit(llist_entry_remove(&llistHead));
+    llist_entry_deinit(llist_entry_remove(&g_llist_head));
   }
 }
 
 void compage_cancel_pthreads(){
-  compage_t *it = llistHead;
+  compage_t *it = g_llist_head;
 
   _I("Cancelling pthreads");
   while(it != NULL){
@@ -1149,17 +1150,17 @@ static inline compageStatus_t compage_kill_common(compage_t *entry){
 }
 
 compageStatus_t compage_kill_by_name(const char *name){
-  compage_t *entry = llist_entry_find_by_name(llistHead, name);
+  compage_t *entry = llist_entry_find_by_name(g_llist_head, name);
   return compage_kill_common(entry);
 }
 
 compageStatus_t compage_kill_by_sid(const char *sid){
-  compage_t *entry = llist_entry_find_by_sid(llistHead, sid);
+  compage_t *entry = llist_entry_find_by_sid(g_llist_head, sid);
   return compage_kill_common(entry);
 }
 
 compageStatus_t compage_kill_by_id(unsigned id){
-  compage_t *entry = llist_entry_find_by_id(llistHead, id);
+  compage_t *entry = llist_entry_find_by_id(g_llist_head, id);
   return compage_kill_common(entry);
 }
 
@@ -1184,7 +1185,7 @@ compageState_t compage_get_state(void *p){
 
 
 compageState_t compage_get_state_by_name(const char *name){
-  compage_t *entry = llist_entry_find_by_name(llistHead, name);
+  compage_t *entry = llist_entry_find_by_name(g_llist_head, name);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1193,7 +1194,7 @@ compageState_t compage_get_state_by_name(const char *name){
 }
 
 compageState_t compage_get_state_by_sid(const char *sid){
-  compage_t *entry = llist_entry_find_by_sid(llistHead, sid);
+  compage_t *entry = llist_entry_find_by_sid(g_llist_head, sid);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1202,7 +1203,7 @@ compageState_t compage_get_state_by_sid(const char *sid){
 }
 
 compageState_t compage_get_state_by_id(unsigned id){
-  compage_t *entry = llist_entry_find_by_id(llistHead, id);
+  compage_t *entry = llist_entry_find_by_id(g_llist_head, id);
   if(entry == NULL){
     return COMPAGE_STATE_ILLEGAL;
   }
@@ -1215,12 +1216,12 @@ const char* compage_get_state_str(compageState_t state){
     state = COMPAGE_STATE_ILLEGAL;
   }
 
-  return state_representations[state];
+  return g_state_representations[state];
 }
 
 compageStatus_t compage_get_config_by_name(const char *name, const char *key, void *dst, unsigned size){
 
-  compage_t *entry = llist_entry_find_by_name(llistHead, name);
+  compage_t *entry = llist_entry_find_by_name(g_llist_head, name);
   if(entry == NULL){
     return COMPAGE_WRONG_ARGS; // TODO: more descriptive error code
   }
@@ -1249,7 +1250,7 @@ compageStatus_t _compage_callback_register(
     return COMPAGE_INVALID_TYPE;
   }
 
-  callbacks[type].handler = handler;
-  callbacks[type].arg     = arg;
+  g_callbacks[type].handler = handler;
+  g_callbacks[type].arg     = arg;
   return COMPAGE_SUCCESS;
 }
