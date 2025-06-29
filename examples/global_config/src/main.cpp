@@ -33,6 +33,11 @@ COMPAGE_ADD_GLOBAL_CONFIG(g_example_10);
 COMPAGE_ADD_GLOBAL_CONFIG(g_example_11);
 
 
+/* (alternative way) initialize and register configuration */
+COMPAGE_INIT_ADD_GLOBAL_CONFIG(int32_t, g_example_12, 0);
+COMPAGE_INIT_ADD_GLOBAL_CONFIG(const char*, g_example_13, "Already initialized");
+
+
 int main(int argc, char *argv[]){
   /* The goal of this example is to illustrate how compage can be used to
    * configure global scope variables. The following steps will help in

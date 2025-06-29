@@ -1019,11 +1019,11 @@ static inline compageStatus_t cmd_list_config(const char *config_file){
 compageStatus_t compage_main(int argc, char *argv[]){
   compageStatus_t status;
 
-  _D("ID size:     %lu bytes\n", get_segment_ids_size());
-  _D("INIT size:   %lu bytes\n", get_segment_init_size());
-  _D("LOOP size:   %lu bytes\n", get_segment_loop_size());
-  _D("EXIT size:   %lu bytes\n", get_segment_exit_size());
-  _D("CONFIG size: %lu bytes\n", get_segment_config_size());
+  _D("ID segment size:     %lu bytes", get_segment_ids_size());
+  _D("INIT segment size:   %lu bytes", get_segment_init_size());
+  _D("LOOP segment size:   %lu bytes", get_segment_loop_size());
+  _D("EXIT segment size:   %lu bytes", get_segment_exit_size());
+  _D("CONFIG segment size: %lu bytes", get_segment_config_size());
 
   _D("Checking the supplied argument count");
   if(argc == 1){
