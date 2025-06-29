@@ -92,6 +92,18 @@
 #define COMPAGE_ADD_CONFIG(id, pdata, ...) _COMPAGE_ADD_CONFIG(id, pdata, __VA_ARGS__)
 
 
+/** @def COMPAGE_ADD_GLOBAL_CONFIG(type, name, value)
+ *
+ * @brief Create global configuration variable to be located in dedicated
+ *        section, The macro will store configuration's id (address), address of
+ *        the name for variable and variable's type in a "compage_config_global"
+ *        table / segment.
+ *
+ * @param variable Global variable's label.
+ **/
+#define COMPAGE_ADD_GLOBAL_CONFIG(variable) _COMPAGE_ADD_GLOBAL_CONFIG(variable)
+
+
 /** @def compage_callback_register(handler, type, arg)
  *
  * @brief Register callback function associated with one of the component

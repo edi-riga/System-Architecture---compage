@@ -61,7 +61,7 @@ typedef struct {
 
 
 typedef struct {
-  void*      id;      // address of the streang representation pointer
+  void*      id;      // address of the string representation pointer
   void*      addr;    // address of the pdata struct
   uint64_t   size;    // size of the pdata struct
   uint64_t   padding;
@@ -69,19 +69,19 @@ typedef struct {
 
 
 typedef struct {
-  void*              id; // address of the streang representation pointer
+  void*              id; // address of the string representation pointer
   compageStatus_t    (*handler)(void*); // init handler
 } compageInit_t;
 
 
 typedef struct {
-  void*              id; // address of the streang representation pointer
+  void*              id; // address of the string representation pointer
   compageStatus_t    (*handler)(void*); // loop handler
 } compageLoop_t;
 
 
 typedef struct {
-  void*              id; // address of the streang representation pointer
+  void*              id; // address of the string representation pointer
   compageStatus_t    (*handler)(void*); // exit handler
 } compageExit_t;
 
@@ -92,6 +92,14 @@ typedef struct {
   uint64_t         type;   // type identifiactor for the variable
   size_t           offset; // variable's offset in the struct
 } compageConfig_t;
+
+
+typedef struct {
+  void*            ptr;  // pointer to the global configurable variable
+  const char*      name; // name of the configurable variable
+  uint64_t         type; // type identifiactor for the variable
+  uint64_t         padding;
+} compageConfigGlobal_t;
 #pragma pack(pop)
 
 
