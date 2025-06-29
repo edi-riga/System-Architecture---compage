@@ -118,6 +118,19 @@ __attribute__((no_reorder)) =                                                  \
   COMPAGE_TYPEID(variable)                                                     \
 };
 
+
+#define _COMPAGE_INIT_ADD_GLOBAL_CONFIG(type, label, value)                    \
+type label = value;                                                            \
+compageConfigGlobal_t __global_##label                                         \
+__attribute__((used,section("compage_global")))                                \
+__attribute__((no_reorder)) =                                                  \
+{                                                                              \
+  &label,                                                                      \
+  STRINGIFY(label),                                                            \
+  COMPAGE_TYPEID(label)                                                        \
+};
+
+
 compageStatus_t _compage_callback_register(
   compageCallbackHandler_t handler,
   compageCallbackType_t type,

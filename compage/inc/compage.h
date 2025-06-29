@@ -94,14 +94,29 @@
 
 /** @def COMPAGE_ADD_GLOBAL_CONFIG(type, name, value)
  *
- * @brief Create global configuration variable to be located in dedicated
- *        section, The macro will store configuration's id (address), address of
- *        the name for variable and variable's type in a "compage_config_global"
+ * @brief Mark (global scope) variable for configuration from a compage INI
+ *        file. The macro will store configuration's id (address), address
+ *        for the variable name and variable's type in a "compage_config_global"
  *        table / segment.
  *
  * @param variable Global variable's label.
  **/
 #define COMPAGE_ADD_GLOBAL_CONFIG(variable) _COMPAGE_ADD_GLOBAL_CONFIG(variable)
+
+
+/** @def COMPAGE_ADD_GLOBAL_CONFIG(type, name, value)
+ *
+ * @brief Initialize global scope variable and mark it for configuration from a
+ *        compage INI file. The macro will store configuration's id (address),
+ *        address for the variable name and variable's type in a
+ *        "compage_config_global" table / segment.
+ *
+ * @param type Type of the variable (must be supported by the framework).
+ * @param label Global variable's label.
+ * @param value Default value.
+ **/
+#define COMPAGE_INIT_ADD_GLOBAL_CONFIG(type, label, value) \
+ _COMPAGE_INIT_ADD_GLOBAL_CONFIG(type, label, value)
 
 
 /** @def compage_callback_register(handler, type, arg)
