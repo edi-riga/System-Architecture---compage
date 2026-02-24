@@ -87,6 +87,12 @@ typedef struct {
 
 
 typedef struct {
+  void*              id; // address of the string representation pointer
+  uint32_t           enabled; // component enabled/disabled flag
+} compageEnabled_t;
+
+
+typedef struct {
   compagePdata_t*  pdata;  // component's private data structure
   const char*      name;   // name of the configuration variable
   uint64_t         type;   // type identifiactor for the variable

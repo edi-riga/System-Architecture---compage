@@ -48,6 +48,15 @@ compageExit_t id##_exit_ __attribute__((used,section("compage_exit"))) =       \
 };
 
 
+#define _COMPAGE_SET_ENABLED(id, enabled)                                      \
+compageExit_t id##_enabled_ __attribute__((used,section("compage_enabled"))) =    \
+{                                                                              \
+  &__##id##_id,                                                                \
+  enabled                                                                      \
+};
+
+
+
 #define _COMPAGE_ADD_CONFIG(id, pdata, ...)\
 COMPAGE_PDATA_ADD_CONFIGS_(COMPAGE_ARGUMENT_COUNT(__VA_ARGS__), id, pdata, __VA_ARGS__)
 

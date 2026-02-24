@@ -11,7 +11,7 @@
  *        macro will store address to the given string in a "compage_ids" table
  *        / segment, but the address of this location (double pointer) is
  *        further used as unique ID. Multiple components registered with the
- *        same ID should trigger a runtime error.
+ *        same ID should trigger a compilation error.
  *
  * @param id A string identifier of the component.
  **/
@@ -24,7 +24,7 @@
  *        the COMPAGE framework. The macro will store component's id, size of the
  *        private data structure and the its actual address in a "copmage_pdata"
  *        table / segment. Multiple registrations with the same string ID should
- *        trigger a runtime error.
+ *        trigger a compilation error.
  *
  * @param id A string identifier of the component.
  * @param pdata Default private data structure of the component (passed by value).
@@ -37,7 +37,8 @@
  * @brief Associate initializtion routine (handler) with the component associated
  *        to the given ID. The macro will store component's id, and actual
  *        address of the handler in a "compage_init" table / segment. Multiple
- *        registrations with the same string ID should trigger a runtime error.
+ *        registrations with the same string ID should trigger a compilation
+ *        error.
  *
  * @param id A string identifier of the component.
  * @param handler Initalization routine with the following protoype
@@ -52,7 +53,8 @@
  * @brief Associate control loop routine (handler) with the component associated
  *        to the given ID. The macro will store component's id (addr), and actual
  *        address of the handler in a "compage_loop" table / segment. Multiple
- *        registrations with the same string ID should trigger a runtime error.
+ *        registrations with the same string ID should trigger a compilation
+ *        error.
  *
  * @param id A string identifier of the component.
  * @param handler Control loop's routine with the following protoype
@@ -67,7 +69,8 @@
  * @brief Associate exit routine (handler) with the component associated to the
  *        given ID. The macro will store component's id (address) and actual
  *        address of the handler in a "compage_exit" table / segment. Multiple
- *        registrations with the same string ID should trigger a runtime error.
+ *        registrations with the same string ID should trigger a compilation
+ *        error.
  *
  * @param id A string identifier of the component.
  * @param handler Deinitialization routine with the following protoype
@@ -75,6 +78,19 @@
  *        custom data type of the component.
  **/
 #define COMPAGE_REGISTER_EXIT(id, handler) _COMPAGE_REGISTER_EXIT(id, handler)
+
+
+/** @def COMPAGE_SET_ENABLED(id, enabled)
+ *
+ * @brief Set component's enabled default configuration, given it's ID.  The
+ *        macro will store component's id (address) and enable configuration a
+ *        "compage_enabled" table / segment. Multiple registrations with the
+ *        same string ID should trigger a compilation error.
+ *
+ * @param id A string identifier of the component.
+ * @param enabled Component's default state: "0" - disabled, "1" - enabled.
+ **/
+#define COMPAGE_SET_ENABLED(id, handler) _COMPAGE_SET_ENABLED(id, handler)
 
 
 /** @def COMPAGE_REGISTER_EXIT(id, handler)
