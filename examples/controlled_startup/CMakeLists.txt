@@ -12,3 +12,6 @@ target_include_directories(controller_startup PUBLIC
   "${PROJECT_SOURCE_DIR}/examples/controller_startup"
   "${PROJECT_SOURCE_DIR}/compage/inc"
 )
+
+# Add compile options
+target_compile_options(compage_static_object PUBLIC "-Wall" "-Wextra")

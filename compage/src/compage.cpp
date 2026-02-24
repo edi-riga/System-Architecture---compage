@@ -26,7 +26,7 @@
 compageId_t dummy_id __attribute__((used,section("compage_ids"))) =
   {NULL};
 compagePdata_t dummy_pdata __attribute__((used,section("compage_pdata"))) =
-  {NULL, NULL, 0};
+  {NULL, NULL, 0, 0};
 compageInit_t dummy_init __attribute__((used,section("compage_init"))) =
   {NULL, NULL};
 compageLoop_t dummy_loop __attribute__((used,section("compage_loop"))) =
@@ -38,7 +38,7 @@ compageExit_t dummy_enabled __attribute__((used,section("compage_enabled"))) =
 compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
   {NULL, NULL, 0, 0};
 compageConfigGlobal_t dummy_config_global __attribute__((used,section("compage_global"))) =
-  {NULL, NULL, 0};
+  {NULL, NULL, 0, 0};
 
 
 /* Linked list structure for the compage components */
@@ -848,7 +848,6 @@ compageStatus_t compage_print_components(){
 }
 
 compageStatus_t compage_print_global_config(){
-  compageStatus_t status;
   compageConfigGlobal_t *config_start;
   compageConfigGlobal_t *config_stop;
   char buf[256];
