@@ -52,6 +52,7 @@ COMPAGE_REGISTER_INIT(test0, init);
 COMPAGE_REGISTER_LOOP(test0, loop);
 COMPAGE_REGISTER_EXIT(test0, texit);
 COMPAGE_ADD_CONFIG(test0, pdata, string, counter);
+COMPAGE_SET_ENABLED(test0, 0);
 
 /* "test1" component registration example (may be in a separate file) */
 COMPAGE_REGISTER_ID(test1);

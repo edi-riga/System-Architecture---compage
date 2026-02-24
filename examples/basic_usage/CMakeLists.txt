@@ -12,3 +12,6 @@ target_include_directories(basic_usage PUBLIC
   "${PROJECT_SOURCE_DIR}/examples/basic_usage"
   "${PROJECT_SOURCE_DIR}/compage/inc"
 )
+
+# Add compile options
+target_compile_options(compage_static_object PUBLIC "-Wall" "-Wextra")

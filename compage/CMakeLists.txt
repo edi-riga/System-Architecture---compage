@@ -73,3 +73,6 @@ set(CMAKE_CONFIGURATION_TYPES Release Debug)
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
+
+# Add compile options
+target_compile_options(compage_static_object PUBLIC "-Wall")

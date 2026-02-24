@@ -26,17 +26,19 @@
 compageId_t dummy_id __attribute__((used,section("compage_ids"))) =
   {NULL};
 compagePdata_t dummy_pdata __attribute__((used,section("compage_pdata"))) =
-  {NULL, NULL, 0};
+  {NULL, NULL, 0, 0};
 compageInit_t dummy_init __attribute__((used,section("compage_init"))) =
   {NULL, NULL};
 compageLoop_t dummy_loop __attribute__((used,section("compage_loop"))) =
   {NULL, NULL};
 compageExit_t dummy_exit __attribute__((used,section("compage_exit"))) =
   {NULL, NULL};
+compageExit_t dummy_enabled __attribute__((used,section("compage_enabled"))) =
+  {NULL, 0};
 compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
   {NULL, NULL, 0, 0};
 compageConfigGlobal_t dummy_config_global __attribute__((used,section("compage_global"))) =
-  {NULL, NULL, 0};
+  {NULL, NULL, 0, 0};
 
 
 /* Linked list structure for the compage components */
@@ -79,6 +81,9 @@ extern unsigned __stop_compage_loop;
 
 extern unsigned __start_compage_exit;
 extern unsigned __stop_compage_exit;
+
+extern unsigned __start_compage_enabled;
+extern unsigned __stop_compage_enabled;
 
 extern unsigned __start_compage_config;
 extern unsigned __stop_compage_config;
@@ -135,6 +140,16 @@ inline void* get_segment_exit_stop(){
 }
 inline uint64_t get_segment_exit_size(){
     return (uint64_t)get_segment_exit_stop() - (uint64_t)get_segment_exit_start();
+}
+
+inline void* get_segment_enabled_start(){
+    return &__start_compage_enabled;
+}
+inline void* get_segment_enabled_stop(){
+    return &__stop_compage_enabled;
+}
+inline uint64_t get_segment_enabled_size(){
+    return (uint64_t)get_segment_enabled_stop() - (uint64_t)get_segment_enabled_start();
 }
 
 inline void* get_segment_config_start(){
@@ -288,10 +303,28 @@ static compageExit_t* locate_exit_segment(void *id){
   return NULL;
 }
 
+static compageEnabled_t* locate_enabled_segment(void *id){
+  compageEnabled_t *start, *stop;
+
+  start = (compageEnabled_t*)get_segment_enabled_start();
+  stop  = (compageEnabled_t*)get_segment_enabled_stop();
+
+  while(start < stop){
+    if(start->id == id){
+      return start;
+    }
+
+    start++;
+  }
+
+  return NULL;
+}
+
 
 static compageStatus_t write_default_config(FILE *fd){
   compageId_t *ids_start, *ids_stop;
   compagePdata_t *pdata; //*pdata_start, *pdata_stop;
+  compageEnabled_t *opt_enabled;
   compageConfig_t *config_start, *config_stop;
   char buf[256];
 
@@ -315,7 +348,9 @@ static compageStatus_t write_default_config(FILE *fd){
     }
 
     /* write component's enable flag */
-    if(fprintf(fd, "enabled=1\n") < 0){
+    /* find respective private data structure for further use */
+    opt_enabled = locate_enabled_segment(ids_start);
+    if(fprintf(fd, "enabled=%u\n", (opt_enabled) ? opt_enabled->enabled : 1) < 0){
       _SE("Failed to write to the configuration file");
       return COMPAGE_SYSTEM_ERROR;
     }
@@ -420,6 +455,10 @@ static int config_init_default(compage_t **entry,
     return 1;
   }
 
+  /* retrieve component's "enabled" state */
+  compageEnabled_t *opt_enabled = locate_enabled_segment(id);
+
+
   /* At this point we have all the required data, lets continue with
    * the initialization of the default component's configuration */
   if( ((*entry)->name = strdup(componentName)) == NULL){
@@ -429,7 +468,7 @@ static int config_init_default(compage_t **entry,
   }
 
   memcpy((*entry)->pdata, pdata->addr, pdata->size);
-  (*entry)->enabled      = 1; // initially component is always enabled
+  (*entry)->enabled      = (opt_enabled) ? opt_enabled->enabled : 1;
   (*entry)->compageId    = id;
   (*entry)->compagePdata = pdata;
   (*entry)->handlerInit  = (init) ? init->handler : NULL;
@@ -809,7 +848,6 @@ compageStatus_t compage_print_components(){
 }
 
 compageStatus_t compage_print_global_config(){
-  compageStatus_t status;
   compageConfigGlobal_t *config_start;
   compageConfigGlobal_t *config_stop;
   char buf[256];
