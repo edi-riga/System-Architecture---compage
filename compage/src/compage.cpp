@@ -33,7 +33,7 @@ compageLoop_t dummy_loop __attribute__((used,section("compage_loop"))) =
   {NULL, NULL};
 compageExit_t dummy_exit __attribute__((used,section("compage_exit"))) =
   {NULL, NULL};
-compageExit_t dummy_enabled __attribute__((used,section("compage_enabled"))) =
+compageEnabled_t dummy_enabled __attribute__((used,section("compage_enabled"))) =
   {NULL, 0};
 compageConfig_t dummy_config __attribute__((used,section("compage_config"))) =
   {NULL, NULL, 0, 0};
@@ -62,6 +62,19 @@ static const char *g_state_representations[] = {
   "COMPLETED",                 // COMPAGE_STATE_COMPLETED_SUCCESS
   "COMPLETED (WITH FAILURE)",  // COMPAGE_STATE_COMPLETED_FAILURE
   "ILLEGAL",                   // COMPAGE_STATE_ILLEGAL
+};
+
+/* Global compage configuration */
+static compageStartupPolicy_t g_compage_startup_policy = COMPAGE_STARTUP_DEFAULT;
+
+typedef struct {
+  const char  *name;
+  void        *ptr;
+  uint64_t    type;
+} compageGlobal_t;
+
+compageGlobal_t g_compage_global_configs[] = {
+  {"compage_startup_policy", &g_compage_startup_policy, COMPAGE_TYPEID(unsigned)},
 };
 
 
@@ -394,6 +407,11 @@ static compageStatus_t write_default_config_global(FILE *fd){
   compageConfigGlobal_t *config_start, *config_stop;
   char buf[256];
 
+  /* save global - compage execution-related configuration */
+  fprintf(fd, "%s=%u\n",
+    g_compage_global_configs[0].name,
+    *(uint32_t*)g_compage_global_configs[0].ptr);
+
   /* parse and save corresponding configurations */
   config_start = (compageConfigGlobal_t*)get_segment_global_start();
   config_stop  = (compageConfigGlobal_t*)get_segment_global_stop();
@@ -508,6 +526,18 @@ static void llist_entry_deinit(compage_t *entry){
 static int config_parse_key_value_global(const char* key, const char* value){
   compageConfigGlobal_t *config_start, *config_stop;
   _D("Attempting to update global config (key: %s, value: %s)", key, value);
+
+  /* first check compage (not user) global configuration */
+  for(unsigned i=0; i<sizeof(g_compage_global_configs)/sizeof(*g_compage_global_configs); i++){
+    if(strcmp(g_compage_global_configs[i].name, key) == 0){
+      if(compage_cfg_set_value(
+        (char*)g_compage_global_configs[i].ptr,
+        value, g_compage_global_configs[i].type) != 0){
+        _W("Failed to set compage configured value");
+      }
+      continue;
+    }
+  }
 
   /* attempt to find configuration */
   config_start = (compageConfigGlobal_t*)get_segment_global_start();
@@ -628,6 +658,19 @@ static compageStatus_t compage_check_segments(){
   return COMPAGE_SUCCESS;
 }
 
+static compageStatus_t compage_check_all_init_done(){
+  compage_t *it = g_llist_head;
+
+  while(it != NULL){
+    if((it->enabled) and it->state<COMPAGE_STATE_POSTINIT){
+      return COMPAGE_FAILED_LAUNCH;
+    }
+    it++;
+  }
+
+  return COMPAGE_SUCCESS;
+}
+
 /* ============================================================================ */
 /* PTHREAD HANDLERS */
 /* ============================================================================ */
@@ -698,6 +741,11 @@ static void *pthread_handler(compage_t *entry){
 
     pthread_handler_execute_callback(entry,
       COMPAGE_STATE_POSTINIT, COMPAGE_CALLBACK_POSTINIT);
+  }
+
+  /*  */
+  if(g_compage_startup_policy == COMPAGE_STARTUP_STAGED){
+    while(compage_check_all_init_done() != COMPAGE_SUCCESS);
   }
 
   /* loop (control): pre-callback, handler, post-callback */
