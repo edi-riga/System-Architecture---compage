@@ -16,7 +16,8 @@ typedef enum {
   COMPAGE_INVALID_TYPE,
   COMPAGE_EXIT_LOOP,
   COMPAGE_CANCELLED,
-  COMPAGE_FAILED_LAUNCH
+  COMPAGE_FAILED_LAUNCH,
+  COMPAGE_NOT_INITIALISED,
 } compageStatus_t;
 
 typedef enum {
@@ -44,6 +45,11 @@ typedef enum {
   COMPAGE_CALLBACK_POSTEXIT,
   COMPAGE_CALLBACK_COUNT
 } compageCallbackType_t;
+
+typedef enum {
+  COMPAGE_STARTUP_DEFAULT=0,
+  COMPAGE_STARTUP_STAGED
+} compageStartupPolicy_t;
 
 typedef void (*compageHandler_t)(void*);
 typedef void (*compageCallbackHandler_t)(void*, void*);
