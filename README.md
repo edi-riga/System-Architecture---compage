@@ -72,11 +72,11 @@ static compageStatus_t init(pdata_t *p){
 We can register the component as follows:
 ```c
 /* register component's id (string to show up as ini file's section) */
-COMPAGE_REGISTER(example);
+COMPAGE_REGISTER_ID(example);
 /* register component's default (private) data*/
 COMPAGE_REGISTER_PDATA(example, pdata);
 /* register component's init handler*/
-COMPAGE_REGISTER_INIT(example, pdata);
+COMPAGE_REGISTER_INIT(example, init);
 /* add data to be configured via ini file */
 COMPAGE_ADD_CONFIG(example, pdata, example_parameter);
 ```
